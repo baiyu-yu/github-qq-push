@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>/* %%COMMON_CSS%% */</style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span class="event-badge badge-star">⭐ Star</span>
+      <span class="repo-name">{{repoFullName}}</span>
+    </div>
+
+    <div class="card-title">{{repoFullName}}</div>
+
+    <div class="description">{{repoDescription}}</div>
+
+    <div class="author">
+      <img class="avatar" src="{{avatarUrl}}" alt="avatar">
+      <span>
+        <span class="author-name">{{senderName}}</span>
+        <span class="author-action"> {{actionText}}</span>
+      </span>
+      <span class="timestamp">{{timestamp}}</span>
+    </div>
+
+    <div class="star-count">
+      <span class="star-icon">⭐</span>
+      <span>{{starCount}}</span>
+      <span style="font-size: 14px; color: #8b949e; font-weight: 400;"> stars</span>
+    </div>
+
+    <div class="card-footer">
+      <span>{{language}} · {{forksCount}} forks</span>
+      <span class="watermark">GitHub QQ Push</span>
+    </div>
+  </div>
+</body>
+</html>

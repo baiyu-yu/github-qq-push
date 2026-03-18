@@ -1,0 +1,25 @@
+{
+  "name": "github-qq-push",
+  "version": "1.0.0",
+  "description": "GitHub event push service for QQ via OneBot forward WebSocket (NapCat)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "express": "^4.21.0",
+    "puppeteer": "^23.0.0",
+    "ws": "^8.18.0",
+    "marked": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.6.0"
+  }
+}

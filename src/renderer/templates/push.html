@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>/* %%COMMON_CSS%% */</style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span class="event-badge badge-push">📦 Push</span>
+      <span class="repo-name">{{repoFullName}}</span>
+    </div>
+
+    <div class="author">
+      <img class="avatar" src="{{avatarUrl}}" alt="avatar">
+      <span>
+        <span class="author-name">{{pusherName}}</span>
+        <span class="author-action"> 推送了 {{commitCount}} 个提交</span>
+      </span>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <span class="branch">🌿 {{branch}}</span>
+    </div>
+
+    <div class="commits">
+      {{commitsHtml}}
+    </div>
+
+    {{statsHtml}}
+
+    <div class="card-footer">
+      <span>{{compareText}}</span>
+      <span class="watermark">GitHub QQ Push</span>
+    </div>
+  </div>
+</body>
+</html>

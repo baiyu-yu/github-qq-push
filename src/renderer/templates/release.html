@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>/* %%COMMON_CSS%% */</style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span class="event-badge badge-release">🚀 Release</span>
+      <span class="repo-name">{{repoFullName}}</span>
+    </div>
+
+    <div class="card-title">{{releaseName}}</div>
+
+    <div class="author">
+      <img class="avatar" src="{{avatarUrl}}" alt="avatar">
+      <span>
+        <span class="author-name">{{authorName}}</span>
+        <span class="author-action"> 发布了新版本</span>
+      </span>
+      <span class="timestamp">{{timestamp}}</span>
+    </div>
+
+    <span class="release-tag">🏷️ {{tagName}}</span>
+
+    <div class="card-body">
+      {{bodyHtml}}
+    </div>
+
+    <div class="card-footer">
+      <span>{{assetsText}}</span>
+      <span class="watermark">GitHub QQ Push</span>
+    </div>
+  </div>
+</body>
+</html>

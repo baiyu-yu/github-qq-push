@@ -1,0 +1,20 @@
+{
+  "onebot": {
+    "ws_url": "ws://127.0.0.1:3001",
+    "access_token": ""
+  },
+  "github": {
+    "webhook_port": 7890,
+    "webhook_secret": "",
+    "access_token": ""
+  },
+  "subscriptions": [
+    {
+      "repo": "owner/repo",
+      "events": ["push", "issues", "pull_request", "release", "star", "fork"],
+      "targets": [
+        { "type": "group", "id": "123456" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>/* %%COMMON_CSS%% */</style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span class="event-badge {{badgeClass}}">{{eventIcon}} {{eventLabel}}</span>
+      <span class="repo-name">{{repoFullName}}</span>
+    </div>
+
+    <div class="card-title">
+      {{title}} <span class="number">#{{number}}</span>
+    </div>
+
+    <div class="author">
+      <img class="avatar" src="{{avatarUrl}}" alt="avatar">
+      <span>
+        <span class="author-name">{{authorName}}</span>
+        <span class="author-action"> {{actionText}}</span>
+      </span>
+      <span class="timestamp">{{timestamp}}</span>
+    </div>
+
+    {{labelsHtml}}
+
+    <div class="card-body">
+      {{bodyHtml}}
+    </div>
+
+    <div class="card-footer">
+      <span>💬 {{comments}} · 👍 {{reactions}}</span>
+      <span class="watermark">GitHub QQ Push</span>
+    </div>
+  </div>
+</body>
+</html>
