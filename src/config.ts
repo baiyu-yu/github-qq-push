@@ -16,6 +16,7 @@ export interface GitHubConfig {
 export interface RenderConfig {
   image_quality: number; // 0-100
   max_height: number;    // 0 = unlimited
+  theme: "light" | "dark";
 }
 
 export interface SubscriptionTarget {
@@ -66,6 +67,7 @@ export function loadConfig(): AppConfig {
     config.render = {
       image_quality: 90,
       max_height: 8000,
+      theme: "dark",
     };
   }
   if (!config.subscriptions) {

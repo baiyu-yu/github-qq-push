@@ -38,7 +38,8 @@ export async function closeRenderer(): Promise<void> {
  */
 export async function renderTemplate(
   templateName: string,
-  data: Record<string, any>
+  data: Record<string, any>,
+  options: { fullPage?: boolean; width?: number } = {}
 ): Promise<string> {
   if (!browser) {
     await initRenderer();
@@ -68,13 +69,15 @@ export async function renderTemplate(
     html = html.replace(placeholder, String(value ?? ""));
   }
 
-  const page = await browser!.newPage();
-  try {
-    await page.setViewport({ width: 600, height: 100 });
-    await page.setContent(html, { waitUntil: "networkidle0", timeout: 15000 });
-
     const config = getConfig();
-    const renderCfg = config.render || { image_quality: 90, max_height: 8000 };
+    const renderCfg = config.render || { image_quality: 90, max_height: 8000, theme: "dark" };
+    const theme = renderCfg.theme || "dark";
+    html = html.replace("<body>", `<body class="${theme}-theme">`);
+
+    const page = await browser!.newPage();
+    try {
+      await page.setViewport({ width: options.width || 600, height: 100 });
+      await page.setContent(html, { waitUntil: "networkidle0", timeout: 15000 });
 
     // Auto-calculate content height and enforce max height limits
     const bodyHeight = await page.evaluate(() => {
@@ -82,7 +85,7 @@ export async function renderTemplate(
     });
     
     let finalHeight = bodyHeight + 20;
-    let fullPage = renderCfg.max_height === 0;
+    let fullPage = renderCfg.max_height === 0 || !!options.fullPage;
 
     if (!fullPage && finalHeight > renderCfg.max_height) {
       finalHeight = renderCfg.max_height;
@@ -104,9 +107,9 @@ export async function renderTemplate(
 /**
  * Convert markdown text to safe HTML for use inside templates.
  */
-export function markdownToHtml(md: string): string {
+export function markdownToHtml(md: string, maxLength: number = 50000): string {
   if (!md) return "";
-  // Truncate very long markdown
-  const truncated = md.length > 2000 ? md.slice(0, 2000) + "\n\n..." : md;
+  // Truncate very long markdown to avoid crashing the parser, but allow large limits
+  const truncated = md.length > maxLength ? md.slice(0, maxLength) + "\n\n..." : md;
   return marked.parse(truncated, { async: false }) as string;
 }

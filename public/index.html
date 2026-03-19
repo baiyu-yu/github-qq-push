@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GitHub QQ Push 控制台</title>
+  <link rel="icon" href="/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -161,7 +162,10 @@
 <body>
   <div class="container">
     <h1>
-      <div class="title-left">GitHub QQ Push 控制台</div>
+      <div class="title-left">
+        <img src="/icon.png" width="32" height="32" style="border-radius: 6px; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+        GitHub QQ Push 控制台
+      </div>
       <button class="theme-toggle" onclick="toggleTheme()" title="切换模式" id="theme-btn">模式</button>
     </h1>
 
@@ -301,6 +305,13 @@
             <label>长图最大高度 (像素, 0=无限制)</label>
             <input type="number" id="cfg-render-maxheight" class="form-control" placeholder="8000" min="0">
           </div>
+          <div class="form-group">
+            <label>渲染主题 (白天/黑夜)</label>
+            <select id="cfg-render-theme" class="form-control">
+              <option value="dark">黑暗模式 (Dark)</option>
+              <option value="light">白天模式 (Light)</option>
+            </select>
+          </div>
           <div class="form-group" style="grid-column: 1 / -1;">
             <label>GitHub Personal Access Token (PAT) [强烈推荐]</label>
             <input type="password" id="cfg-gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
@@ -367,7 +378,7 @@
         updateStatusAPI(statusData);
         renderTable();
         
-        if (document.activeElement.tagName !== "INPUT") {
+        if (!window.initialConfigLoaded) {
             document.getElementById('cfg-ob-ws').value = currentConfig.onebot.ws_url || '';
             document.getElementById('cfg-ob-token').value = currentConfig.onebot.access_token || '';
             document.getElementById('cfg-gh-port').value = currentConfig.github.webhook_port || 7890;
@@ -375,6 +386,8 @@
             document.getElementById('cfg-gh-token').value = currentConfig.github.access_token || '';
             document.getElementById('cfg-render-quality').value = currentConfig.render?.image_quality ?? 90;
             document.getElementById('cfg-render-maxheight').value = (currentConfig.render?.max_height !== undefined) ? currentConfig.render.max_height : 8000;
+            document.getElementById('cfg-render-theme').value = currentConfig.render?.theme || 'dark';
+            window.initialConfigLoaded = true;
         }
 
         if(document.getElementById('tab-logs').classList.contains('active')) fetchLogs();
@@ -516,6 +529,7 @@
       
       const maxH = parseInt(document.getElementById('cfg-render-maxheight').value);
       currentConfig.render.max_height = isNaN(maxH) ? 8000 : maxH;
+      currentConfig.render.theme = document.getElementById('cfg-render-theme').value || 'dark';
       
       pushConfigUpdate('save-msg-global');
     }

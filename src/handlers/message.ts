@@ -61,6 +61,7 @@ export async function handleMessage(
 /github unsub <owner/repo> - 取消仓库订阅
 /github list - 列出本群所有订阅的仓库
 /readme <owner/repo> - 以长图形式发送仓库的 README 说明
+/pr <owner/repo> <number> - 长图显示 PR 合并/变更详情
 直接发送含有 GitHub 仓库的主页链接，即可自动解析为卡片。`;
     if (messageType === "group") await bot.sendGroupText(targetId, helpMsg);
     else await bot.sendPrivateText(targetId, helpMsg);
@@ -175,6 +176,29 @@ export async function handleMessage(
     }
   }
 
+  // 3. /pr command
+  if (text.startsWith("/pr ")) {
+    const parts = text.split(" ").filter(Boolean);
+    let target = parts[1]; // owner/repo
+    let prNumStr = parts[2];
+    let owner = "";
+    let repo = "";
+    if (target && target.includes("/")) {
+      [owner, repo] = target.split("/");
+    }
+    const prNumber = parseInt(prNumStr, 10);
+    
+    if (owner && repo && !isNaN(prNumber)) {
+      await handlePrCommand(owner, cleanRepoName(repo), prNumber, targetId, messageType, bot);
+      return;
+    } else {
+      const msg = "格式不正确。请使用 `/pr owner/repo <number>`。";
+      if (messageType === "group") await bot.sendGroupText(targetId, msg);
+      else await bot.sendPrivateText(targetId, msg);
+      return;
+    }
+  }
+
   // 3. Auto-parse GitHub Repo URLs into cards
   const urlMatch = text.match(repoUrlRegex);
   if (urlMatch && !text.startsWith("/")) {
@@ -247,7 +271,7 @@ async function handleReadmeCommand(
       tagName: "DOCUMENT",
       bodyHtml,
       assetsText: "由 GitHub QQ Push 提供",
-    });
+    }, { fullPage: true });
 
     await bot.sendImageToTarget(target, image, "无法发送 README 图片");
   } catch (e: any) {
@@ -259,5 +283,84 @@ async function handleReadmeCommand(
       errorMsg = "[GitHub API] 请求频率超限 (受限于 60次/小时)，请联系管理员配置 GitHub Token。";
     }
     await bot.sendTextToTarget(target, errorMsg);
+  }
+}
+
+async function handlePrCommand(
+  owner: string,
+  repoName: string,
+  prNumber: number,
+  targetId: string | number,
+  messageType: string,
+  bot: OneBotClient
+) {
+  const target = { type: messageType, id: String(targetId) };
+  try {
+    const { data: pr } = await getOctokit().pulls.get({
+      owner,
+      repo: repoName,
+      pull_number: prNumber,
+    });
+
+    let badgeClass = "badge-pr-open";
+    let eventLabel = "PR Opened";
+
+    if (pr.state === "closed") {
+      if (pr.merged) {
+        badgeClass = "badge-pr-merged";
+        eventLabel = "PR Merged";
+      } else {
+        badgeClass = "badge-pr-closed";
+        eventLabel = "PR Closed";
+      }
+    }
+
+    // Labels HTML
+    let labelsHtml = "";
+    if (pr.labels && pr.labels.length > 0) {
+      const labelItems = pr.labels
+        .map((l: any) => {
+          const bg = l.color ? `#${l.color}` : "#30363d";
+          return `<span class="label" style="background: ${bg}33; color: #${l.color || 'e6edf3'}; border-color: ${bg}55;">${l.name}</span>`;
+        })
+        .join("");
+      labelsHtml = `<div class="labels">${labelItems}</div>`;
+    }
+
+    const prStats = `
+      <div style="margin: 10px 0; padding: 10px; background: #161b22; border-radius: 6px; border: 1px solid #30363d;">
+        <span style="color: #3fb950;">+${pr.additions} 增加</span>
+        <span style="color: #8b949e; margin: 0 10px;">|</span>
+        <span style="color: #f85149;">-${pr.deletions} 删除</span>
+        <span style="color: #8b949e; margin: 0 10px;">|</span>
+        <span style="color: #e6edf3;">${pr.changed_files} 个文件变更</span>
+      </div>
+    `;
+
+    // Append stats to body
+    const bodyHtml = markdownToHtml(pr.body || "", 50000) + prStats;
+    const timestamp = new Date(pr.created_at).toLocaleString("zh-CN");
+
+    const image = await renderTemplate("issue", {
+      badgeClass,
+      eventIcon: "",
+      eventLabel,
+      repoFullName: `${owner}/${repoName}`,
+      title: pr.title,
+      number: pr.number,
+      avatarUrl: getAvatarUrl(pr.user?.login || "github"),
+      authorName: pr.user?.login || "unknown",
+      actionText: `查看了 Pull Request`,
+      timestamp,
+      labelsHtml,
+      bodyHtml,
+      comments: pr.comments || 0,
+      reactions: 0,
+    }, { fullPage: true });
+
+    await bot.sendImageToTarget(target, image, "无法发送 PR 图片");
+  } catch (e: any) {
+    console.error(`[Message] Failed to fetch PR for ${owner}/${repoName}#${prNumber}:`, e.message);
+    await bot.sendTextToTarget(target, "获取 PR 详细信息失败。请检查仓库或编号是否正确。");
   }
 }
