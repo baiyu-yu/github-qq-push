@@ -5,6 +5,7 @@ import { initState } from "./state";
 import { OneBotClient } from "./onebot/client";
 import { GitHubWebhookServer } from "./github/webhook";
 import { initGitHubApi } from "./github/api";
+import { GitHubEventPoller } from "./github/poller";
 import { initRenderer, closeRenderer } from "./renderer";
 import { routeEvent } from "./handlers";
 import { handleMessage } from "./handlers/message";
@@ -39,7 +40,6 @@ async function main() {
   const webhookServer = new GitHubWebhookServer(config.github);
   
   // Attach WebUI routes and static files to the same Express app
-  // Attach WebUI routes and static files to the same Express app
   // @ts-ignore - access private app field since it's an internal server
   const app = webhookServer["app"];
   app.use(express.json());
@@ -50,6 +50,12 @@ async function main() {
     await routeEvent(event, payload, bot);
   });
   webhookServer.start();
+
+  // 6. Start event poller if enabled
+  const poller = new GitHubEventPoller(bot);
+  if (config.github.polling_enabled !== false) {
+    await poller.start();
+  }
 
   console.log();
   console.log("[Main] Service is running!");
@@ -62,6 +68,9 @@ async function main() {
   console.log(`[Main] OneBot WS: ${config.onebot.ws_url}`);
   console.log(
     `[Main] Subscriptions: ${config.subscriptions.length} repo(s) configured`
+  );
+  console.log(
+    `[Main] Polling: ${config.github.polling_enabled !== false ? `enabled (${config.github.polling_interval || 60}s)` : "disabled"}`
   );
   console.log();
 

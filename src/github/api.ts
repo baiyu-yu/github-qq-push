@@ -6,6 +6,11 @@ let octokit: Octokit;
 export function initGitHubApi(config: GitHubConfig): Octokit {
   octokit = new Octokit({
     auth: config.access_token || undefined,
+    request: {
+      headers: {
+        Accept: "application/vnd.github+json",
+      },
+    },
   });
   console.log(
     `[GitHub API] Initialized${config.access_token ? " (authenticated)" : " (unauthenticated)"}`

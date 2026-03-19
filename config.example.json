@@ -6,7 +6,11 @@
   "github": {
     "webhook_port": 7890,
     "webhook_secret": "",
-    "access_token": ""
+    "access_token": "",
+    "polling_enabled": true,
+    "polling_interval": 60,
+    "link_card_group_mode": "all",
+    "link_card_enabled_groups": []
   },
   "subscriptions": [
     {

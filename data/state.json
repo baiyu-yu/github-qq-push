@@ -1,7 +1,14 @@
 {
   "groupStates": {
+    "143412516": {
+      "disabled": false
+    },
     "1064684481": {
       "disabled": false
     }
+  },
+  "lastEventIds": {
+    "baiyu-yu/github-qq-push": "7563134785",
+    "error2913/aiplugin4": "7559484802"
   }
 }

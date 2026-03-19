@@ -8,9 +8,10 @@ export interface GroupState {
 
 export interface AppState {
   groupStates: Record<string, GroupState>;
+  lastEventIds: Record<string, string>; // repo -> last processed event ID
 }
 
-let state: AppState = { groupStates: {} };
+let state: AppState = { groupStates: {}, lastEventIds: {} };
 let configPath = path.resolve(process.cwd(), "config.json");
 let statePath = path.resolve(process.cwd(), "data", "state.json");
 
@@ -30,8 +31,11 @@ export function initState(): void {
   if (fs.existsSync(statePath)) {
     try {
       state = JSON.parse(fs.readFileSync(statePath, "utf-8"));
+      if (!state.lastEventIds) state.lastEventIds = {};
+      if (!state.groupStates) state.groupStates = {};
     } catch (e) {
       console.error("[State] Failed to load state.json, using default state");
+      state = { groupStates: {}, lastEventIds: {} };
     }
   } else {
     saveState();
@@ -83,4 +87,19 @@ export function setGroupToggle(groupId: string, disabled: boolean): void {
  */
 export function getState(): AppState {
   return state;
+}
+
+/**
+ * Get last processed event ID for a repo.
+ */
+export function getLastEventId(repo: string): string | undefined {
+  return state.lastEventIds[repo];
+}
+
+/**
+ * Set last processed event ID for a repo and persist.
+ */
+export function setLastEventId(repo: string, eventId: string): void {
+  state.lastEventIds[repo] = eventId;
+  saveState();
 }

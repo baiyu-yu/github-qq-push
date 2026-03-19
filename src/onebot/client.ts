@@ -21,6 +21,11 @@ export class OneBotClient {
   private isManuallyStopped = false;
   private botInfo: { nickname: string; user_id: number } | null = null;
   
+  private pingInterval: ReturnType<typeof setTimeout> | null = null;
+  private pongTimeout: ReturnType<typeof setTimeout> | null = null;
+  private readonly HEARTBEAT_INTERVAL = 30000;
+  private readonly PONG_TIMEOUT = 10000;
+  
   public onMessageCallback: ((msg: any) => Promise<void>) | null = null;
 
   constructor(config: OneBotConfig) {
@@ -28,11 +33,15 @@ export class OneBotClient {
   }
 
   public updateConfig(newConfig: OneBotConfig) {
-    const urlChanged = this.config.ws_url !== newConfig.ws_url || this.config.access_token !== newConfig.access_token;
-    this.config = {...newConfig};
-    
+    const urlChanged =
+      this.config.ws_url !== newConfig.ws_url ||
+      this.config.access_token !== newConfig.access_token;
+    this.config = { ...newConfig };
+
     if (urlChanged) {
-      console.log(`[OneBot] Configuration changed. Reconnecting to ${newConfig.ws_url}...`);
+      console.log(
+        `[OneBot] Configuration changed. Reconnecting to ${newConfig.ws_url}...`
+      );
       this.disconnect();
       setTimeout(() => {
         this.forceReconnect();
@@ -50,15 +59,14 @@ export class OneBotClient {
   }
 
   public disconnect() {
-    this.isShuttingDown = true;
     this.isManuallyStopped = true;
     this.botInfo = null;
+    this.stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.ws) {
-      // Intentionally close the websocket
       this.ws.removeAllListeners();
       try {
         this.ws.close();
@@ -66,7 +74,7 @@ export class OneBotClient {
       this.ws = null;
     }
     for (const [id, req] of this.pendingRequests.entries()) {
-      req.reject(new Error("WebSocket disconnected due to config change"));
+      req.reject(new Error("WebSocket disconnected"));
     }
     this.pendingRequests.clear();
   }
@@ -111,6 +119,8 @@ export class OneBotClient {
         .catch((e) => {
           console.warn("[OneBot] Failed to get login info:", e.message);
         });
+
+      this.startHeartbeat();
     });
 
     this.ws.on("message", (data: WebSocket.Data) => {
@@ -123,15 +133,48 @@ export class OneBotClient {
     });
 
     this.ws.on("close", (code, reason) => {
+      const reasonStr = reason.toString() || "No reason provided";
       console.warn(
-        `[OneBot] WebSocket closed: ${code} ${reason.toString()}`
+        `[OneBot] WebSocket closed. Code: ${code}, Reason: ${reasonStr}`
       );
       this.scheduleReconnect();
     });
 
     this.ws.on("error", (err) => {
       console.error("[OneBot] WebSocket error:", err.message);
+      if (err.stack) console.debug(err.stack);
     });
+
+    this.ws.on("pong", () => {
+      if (this.pongTimeout) {
+        clearTimeout(this.pongTimeout);
+        this.pongTimeout = null;
+      }
+    });
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.pingInterval = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.ping();
+        this.pongTimeout = setTimeout(() => {
+          console.warn("[OneBot] Heartbeat timeout. Closing connection.");
+          if (this.ws) this.ws.terminate();
+        }, this.PONG_TIMEOUT);
+      }
+    }, this.HEARTBEAT_INTERVAL);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+    if (this.pongTimeout) {
+      clearTimeout(this.pongTimeout);
+      this.pongTimeout = null;
+    }
   }
 
   private scheduleReconnect(): void {
@@ -258,7 +301,8 @@ export class OneBotClient {
         group_id: Number(groupId),
         message,
       });
-      console.log(`[OneBot] Sent image to group ${groupId}`);
+      const preview = fallbackText ? ` (${fallbackText.slice(0, 30)}...)` : "";
+      console.log(`[OneBot] Sent image to group ${groupId}${preview}`);
     } catch (e) {
       console.error(`[OneBot] Failed to send image to group ${groupId}:`, e);
       // Fallback to text
@@ -277,7 +321,9 @@ export class OneBotClient {
         group_id: Number(groupId),
         message: text,
       });
-      console.log(`[OneBot] Sent text to group ${groupId}`);
+      let preview = text.replace(/\n/g, " ");
+      if (preview.length > 50) preview = preview.slice(0, 50) + "...";
+      console.log(`[OneBot] Sent text to group ${groupId}: ${preview}`);
     } catch (e) {
       console.error(`[OneBot] Failed to send text to group ${groupId}:`, e);
     }
@@ -297,7 +343,8 @@ export class OneBotClient {
         user_id: Number(userId),
         message,
       });
-      console.log(`[OneBot] Sent image to user ${userId}`);
+      const preview = fallbackText ? ` (${fallbackText.slice(0, 30)}...)` : "";
+      console.log(`[OneBot] Sent image to user ${userId}${preview}`);
     } catch (e) {
       console.error(`[OneBot] Failed to send image to user ${userId}:`, e);
       if (fallbackText) {
@@ -315,7 +362,9 @@ export class OneBotClient {
         user_id: Number(userId),
         message: text,
       });
-      console.log(`[OneBot] Sent text to user ${userId}`);
+      let preview = text.replace(/\n/g, " ");
+      if (preview.length > 50) preview = preview.slice(0, 50) + "...";
+      console.log(`[OneBot] Sent text to user ${userId}: ${preview}`);
     } catch (e) {
       console.error(`[OneBot] Failed to send text to user ${userId}:`, e);
     }

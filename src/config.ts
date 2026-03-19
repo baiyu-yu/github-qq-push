@@ -5,12 +5,17 @@ import { saveConfig as saveConfigToDisk } from "./state";
 export interface OneBotConfig {
   ws_url: string;
   access_token: string;
+  command_prefix: string; // e.g. "/" or "!"
 }
 
 export interface GitHubConfig {
   webhook_port: number;
   webhook_secret?: string;
   access_token?: string;
+  polling_enabled?: boolean;
+  polling_interval?: number; // seconds, default 60
+  link_card_group_mode?: "all" | "selected" | "none";
+  link_card_enabled_groups?: string[];
 }
 
 export interface RenderConfig {
@@ -54,14 +59,28 @@ export function loadConfig(): AppConfig {
     config.onebot = {
       ws_url: "ws://127.0.0.1:3001",
       access_token: "", // Default empty token
+      command_prefix: "/",
     };
   }
   if (!config.github) {
     config.github = {
       webhook_port: 7890,
-      webhook_secret: "", // Default empty secret
-      access_token: "", // Default empty token
+      webhook_secret: "",
+      access_token: "",
+      polling_enabled: true,
+      polling_interval: 60,
+      link_card_group_mode: "all",
+      link_card_enabled_groups: [],
     };
+  }
+  if (!config.github.link_card_group_mode) {
+    config.github.link_card_group_mode = "all";
+  }
+  if (!config.github.link_card_enabled_groups) {
+    config.github.link_card_enabled_groups = [];
+  }
+  if (!config.onebot.command_prefix) {
+    config.onebot.command_prefix = "/";
   }
   if (!config.render) {
     config.render = {

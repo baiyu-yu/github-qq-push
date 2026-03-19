@@ -28,8 +28,7 @@ export function getWebUIRouter(bot: OneBotClient) {
       
       // Update bot if ws_url changed or reconnect is needed
       if (bot) {
-        bot.disconnect();
-        bot.connect();
+        bot.updateConfig(newConfig.onebot);
       }
       res.json({ success: true });
     } catch (e: any) {
