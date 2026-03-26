@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  github-qq-push:
+    build: .
+    container_name: github-qq-push
+    restart: unless-stopped
+    ports:
+      - "7890:7890"
+    volumes:
+      # 将宿主机的配置文件挂载到容器内，保证配置持久化
+      - ./config.json:/app/config.json
+      # 可选：如果需要持久化日志文件，可以取消下方注释
+      # - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
+    # 针对 Puppeteer 的内存优化（如果没开启 disable-dev-shm-usage，建议设置 shm_size）
+    shm_size: '2gb'

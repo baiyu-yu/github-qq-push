@@ -60,12 +60,23 @@
 
 如果您熟悉 Docker，可以使用以下方式快速部署，无需担心环境依赖：
 
-1. **构建或拉取镜像**:
+#### 方法 A: 使用 Docker Compose (推荐)
+
+1. **准备配置文件**:
+   确保您的项目目录下存在 `config.json`（可从 `config.example.json` 复制改名）。
+2. **启动**:
+   ```bash
+   docker-compose up -d
+   ```
+
+#### 方法 B: 直接使用 Docker 指令
+
+1. **构建镜像**:
    ```bash
    docker build -t github-qq-push .
    ```
 
-2. **运行容器**:
+2. **运行容器 (挂载宿主机配置)**:
    ```bash
    docker run -d \
      --name github-qq-push \
@@ -74,7 +85,7 @@
      github-qq-push
    ```
    > [!TIP]
-   > 建议将 `config.json` 挂载到宿主机，以便持久化存储配置信息。
+   > 由于 Puppeteer 的高内存消耗，建议宿主机至少保留 1GB 内存。
 
 ## 可用指令
 
