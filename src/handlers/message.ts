@@ -135,7 +135,7 @@ export async function handleMessage(
 
       const events = eventsStr
         ? eventsStr.split(",")
-        : ["push", "issues", "pull_request", "release", "star", "fork"];
+        : ["push", "issues", "pull_request", "release", "star", "fork", "issue_comment"];
       addSubscription(cleanRepoName(targetRepo), events, {
         type: "group",
         id: targetId,

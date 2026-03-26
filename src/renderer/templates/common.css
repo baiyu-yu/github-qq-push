@@ -29,6 +29,34 @@ body.light-theme {
   --code-text: #1f2328;
 }
 
+body.github-dark-dimmed-theme {
+  --bg-color: #22272e;
+  --text-main: #adbac7;
+  --text-muted: #768390;
+  --card-bg: #2d333b;
+  --card-border: #444c56;
+  --body-bg: #22272e;
+  --link-color: #539bf5;
+  --badge-bg: rgba(83, 155, 245, 0.15);
+  --badge-text: #539bf5;
+  --code-bg: #444c56;
+  --code-text: #adbac7;
+}
+
+body.github-dark-high-contrast-theme {
+  --bg-color: #0a0c10;
+  --text-main: #ffffff;
+  --text-muted: #7a828e;
+  --card-bg: #0a0c10;
+  --card-border: #7a828e;
+  --body-bg: #010409;
+  --link-color: #71b7ff;
+  --badge-bg: rgba(113, 183, 255, 0.15);
+  --badge-text: #71b7ff;
+  --code-bg: #272b33;
+  --code-text: #ffffff;
+}
+
 * {
   margin: 0;
   padding: 0;

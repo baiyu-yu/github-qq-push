@@ -250,6 +250,10 @@ export class GitHubEventPoller {
       ReleaseEvent: "release",
       WatchEvent: "star",
       ForkEvent: "fork",
+      IssueCommentEvent: "issue_comment",
+      CommitCommentEvent: "commit_comment",
+      PullRequestReviewEvent: "pull_request_review",
+      PullRequestReviewCommentEvent: "pull_request_review_comment",
     };
     return map[apiType] || null;
   }
@@ -310,6 +314,29 @@ export class GitHubEventPoller {
     // ForkEvent normalization
     if (event.type === "ForkEvent") {
       payload.forkee = payload.forkee || {};
+    }
+
+    // IssueCommentEvent normalization
+    if (event.type === "IssueCommentEvent") {
+      payload.issue = payload.issue || {};
+      payload.comment = payload.comment || {};
+    }
+
+    // CommitCommentEvent normalization
+    if (event.type === "CommitCommentEvent") {
+      payload.comment = payload.comment || {};
+    }
+
+    // PullRequestReviewEvent normalization
+    if (event.type === "PullRequestReviewEvent") {
+      payload.pull_request = payload.pull_request || {};
+      payload.review = payload.review || {};
+    }
+
+    // PullRequestReviewCommentEvent normalization
+    if (event.type === "PullRequestReviewCommentEvent") {
+      payload.pull_request = payload.pull_request || {};
+      payload.comment = payload.comment || {};
     }
 
     return payload;

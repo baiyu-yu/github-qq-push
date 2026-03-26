@@ -59,6 +59,20 @@ export function getWebUIRouter(bot: OneBotClient) {
     res.json(logs);
   });
 
+  // Get groups
+  router.get("/api/groups", async (req, res) => {
+    try {
+      if (!bot) {
+        return res.json([]);
+      }
+      const groups = await bot.callApi("get_group_list");
+      res.json(groups || []);
+    } catch (e: any) {
+      console.warn("[WebUI] Failed to fetch group list:", e.message);
+      res.json([]);
+    }
+  });
+
   // Force reconnect
   router.post("/api/reconnect", (req, res) => {
     if (bot) {

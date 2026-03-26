@@ -11,7 +11,8 @@ export interface OneBotConfig {
 export interface GitHubConfig {
   webhook_port: number;
   webhook_secret?: string;
-  access_token?: string;
+  access_token?: string; // Legacy
+  access_tokens?: string[]; // Multiple PATs
   polling_enabled?: boolean;
   polling_interval?: number; // seconds, default 60
   link_card_group_mode?: "all" | "selected" | "none";
@@ -67,6 +68,7 @@ export function loadConfig(): AppConfig {
       webhook_port: 7890,
       webhook_secret: "",
       access_token: "",
+      access_tokens: [],
       polling_enabled: true,
       polling_interval: 60,
       link_card_group_mode: "all",
@@ -81,6 +83,13 @@ export function loadConfig(): AppConfig {
   }
   if (!config.onebot.command_prefix) {
     config.onebot.command_prefix = "/";
+  }
+  if (!config.github.access_tokens) {
+    if (config.github.access_token) {
+      config.github.access_tokens = [config.github.access_token];
+    } else {
+      config.github.access_tokens = [];
+    }
   }
   if (!config.render) {
     config.render = {

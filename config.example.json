@@ -15,7 +15,7 @@
   "subscriptions": [
     {
       "repo": "owner/repo",
-      "events": ["push", "issues", "pull_request", "release", "star", "fork"],
+      "events": ["push", "issues", "pull_request", "release", "star", "fork", "issue_comment"],
       "targets": [
         { "type": "group", "id": "123456" }
       ]

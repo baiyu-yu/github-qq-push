@@ -110,6 +110,7 @@
       font-weight: 700;
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       letter-spacing: -0.02em;
     }
@@ -403,6 +404,34 @@
       .toolbar { flex-direction: column; }
       .toolbar .form-control { width: 100%; }
     }
+
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal {
+      background: var(--card); border: 1px solid var(--card-border);
+      border-radius: 20px; width: 90%; max-width: 500px;
+      max-height: 80vh; display: flex; flex-direction: column;
+      box-shadow: var(--card-shadow);
+      transform: translateY(20px); transition: transform 0.3s;
+    }
+    .modal-overlay.active .modal { transform: translateY(0); }
+    .modal-header { padding: 20px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { margin: 0; font-size: 18px; }
+    .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .group-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px; border: 1px solid var(--card-border); border-radius: 10px;
+      margin-bottom: 8px; cursor: pointer; transition: background 0.2s;
+    }
+    .group-item:hover { background: var(--hover); }
+    .group-name { font-weight: 500; color: var(--text); }
+    .group-id { font-size: 13px; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -524,7 +553,10 @@
           </div>
           <div class="form-group">
             <label>目标 ID (QQ/群号)</label>
-            <input id="add-id" class="form-control" placeholder="例如：123456789">
+            <div style="display: flex; gap: 8px;">
+              <input id="add-id" class="form-control" placeholder="例如：123456789">
+              <button class="btn secondary" onclick="openGroupSelector('add-id')">选择群聊</button>
+            </div>
           </div>
           <div class="form-group" style="display: flex; align-items: flex-end;">
             <button class="btn" onclick="addSubscriptionRow()" style="width: 100%;">确认添加</button>
@@ -536,6 +568,8 @@
     <div id="tab-config" class="tab-content">
       <div class="card">
         <h2>全局配置</h2>
+        
+        <h3 style="margin-top:20px; color: var(--accent);">OneBot 机器人设置</h3>
         <div class="form-grid">
           <div class="form-group">
             <label>OneBot WebSocket 地址 (WS URL)</label>
@@ -549,6 +583,10 @@
             <label>指令前缀 (Command Prefix)</label>
             <input id="cfg-ob-prefix" class="form-control" placeholder="/">
           </div>
+        </div>
+
+        <h3 style="margin-top:30px; color: var(--accent);">GitHub 基础设置</h3>
+        <div class="form-grid">
           <div class="form-group">
             <label>GitHub Webhook 监听端口</label>
             <input id="cfg-gh-port" type="number" class="form-control" placeholder="7890">
@@ -559,8 +597,13 @@
           </div>
           <div class="form-group" style="grid-column: 1 / -1;">
             <label>GitHub 个人访问令牌 (PAT)</label>
-            <input id="cfg-gh-token" type="password" class="form-control" placeholder="ghp_xxxxxxxxxxxx">
+            <textarea id="cfg-gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxx" rows="3"></textarea>
+            <div class="muted" style="margin-top: 6px; font-size: 13px;">可输入多个 Token，每行一个。如果有多个则会轮询使用以分担额度限制。</div>
           </div>
+        </div>
+
+        <h3 style="margin-top:30px; color: var(--accent);">GitHub 事件轮询设置</h3>
+        <div class="form-grid">
           <div class="form-group">
             <label>启用事件轮询 (Polling Enabled)</label>
             <select id="cfg-polling-enabled" class="form-control">
@@ -572,6 +615,19 @@
             <label>轮询间隔 - 秒 (Polling Interval)</label>
             <input id="cfg-polling-interval" type="number" class="form-control" min="10" max="600">
           </div>
+        </div>
+
+        <h3 style="margin-top:30px; color: var(--accent);">图片渲染选项</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>渲染图片主题 (Render Theme)</label>
+            <select id="cfg-render-theme" class="form-control">
+              <option value="dark">深色模式 (dark)</option>
+              <option value="light">浅色模式 (light)</option>
+              <option value="github-dark-dimmed">GitHub 暗柔 (github-dark-dimmed)</option>
+              <option value="github-dark-high-contrast">GitHub 高对比 (github-dark-high-contrast)</option>
+            </select>
+          </div>
           <div class="form-group">
             <label>渲染图片质量 (Render Quality) 1-100</label>
             <input id="cfg-render-quality" type="number" class="form-control" min="1" max="100">
@@ -580,13 +636,10 @@
             <label>渲染图片最大高度 (Render Max Height)</label>
             <input id="cfg-render-maxheight" type="number" class="form-control" min="0">
           </div>
-          <div class="form-group">
-            <label>渲染图片主题 (Render Theme)</label>
-            <select id="cfg-render-theme" class="form-control">
-              <option value="dark">深色 (dark)</option>
-              <option value="light">浅色 (light)</option>
-            </select>
-          </div>
+        </div>
+
+        <h3 style="margin-top:30px; color: var(--accent);">推送目标限制</h3>
+        <div class="form-grid">
           <div class="form-group">
             <label>仓库链接卡片识别群组模式</label>
             <select id="cfg-link-card-mode" class="form-control">
@@ -597,14 +650,31 @@
           </div>
           <div class="form-group" style="grid-column: 1 / -1;">
             <label>允许识别 GitHub 链接并发送卡片的群组 (当启用 selected 模式时生效)</label>
-            <textarea id="cfg-link-card-groups" class="form-control" placeholder="每行输入一个群号，或使用逗号隔开"></textarea>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <button class="btn secondary" onclick="openGroupSelector('cfg-link-card-groups', true)" style="padding: 8px 12px; font-size: 13px;">选择并追加群聊</button>
+            </div>
+            <textarea id="cfg-link-card-groups" class="form-control" placeholder="每行输入一个群号"></textarea>
             <div class="muted" style="margin-top: 6px; font-size: 13px;">留空则无任何群组可识别，请在使用 "仅允许选定群组" 模式时配置。</div>
           </div>
         </div>
-        <div style="margin-top: 24px; display: flex; align-items: center;">
+
+        <div style="margin-top: 32px; display: flex; align-items: center; padding-top: 20px; border-top: 1px solid var(--card-border);">
           <button class="btn" onclick="saveGlobalSettings()">保存配置并使之生效</button>
           <span class="feedback" id="save-msg-global"></span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="group-modal" onclick="if(event.target === this) closeGroupSelector()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>选择群聊</h3>
+        <button class="modal-close" onclick="closeGroupSelector()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="group-search" class="form-control" placeholder="搜索群号或名称..." oninput="filterGroups()" style="margin-bottom: 12px;">
+        <div id="group-list-container">加载中...</div>
       </div>
     </div>
   </div>
@@ -694,7 +764,7 @@
           document.getElementById("cfg-ob-prefix").value = currentConfig.onebot.command_prefix || "/";
           document.getElementById("cfg-gh-port").value = currentConfig.github.webhook_port || 7890;
           document.getElementById("cfg-gh-secret").value = currentConfig.github.webhook_secret || "";
-          document.getElementById("cfg-gh-token").value = currentConfig.github.access_token || "";
+          document.getElementById("cfg-gh-token").value = (currentConfig.github.access_tokens && currentConfig.github.access_tokens.length > 0) ? currentConfig.github.access_tokens.join("\n") : (currentConfig.github.access_token || "");
           document.getElementById("cfg-polling-enabled").value = currentConfig.github.polling_enabled !== false ? "true" : "false";
           document.getElementById("cfg-polling-interval").value = currentConfig.github.polling_interval || 60;
           document.getElementById("cfg-render-quality").value = currentConfig.render?.image_quality ?? 90;
@@ -865,7 +935,9 @@
       currentConfig.onebot.command_prefix = document.getElementById("cfg-ob-prefix").value || "/";
       currentConfig.github.webhook_port = parseInt(document.getElementById("cfg-gh-port").value, 10) || 7890;
       currentConfig.github.webhook_secret = document.getElementById("cfg-gh-secret").value;
-      currentConfig.github.access_token = document.getElementById("cfg-gh-token").value;
+      const rawTokens = document.getElementById("cfg-gh-token").value;
+      currentConfig.github.access_tokens = rawTokens.split(/\r?\n/).map(t => t.trim()).filter(Boolean);
+      currentConfig.github.access_token = undefined; // clear legacy field
       currentConfig.github.polling_enabled = document.getElementById("cfg-polling-enabled").value === "true";
 
       const pollInt = parseInt(document.getElementById("cfg-polling-interval").value, 10);
@@ -930,6 +1002,71 @@
     updateThemeButton();
     loadData();
     setInterval(loadData, 3000);
+
+    // --- Modal Group Selector ---
+    let cachedGroups = [];
+    let groupSelectTargetId = "";
+    let groupSelectAppendMode = false;
+
+    async function openGroupSelector(targetInputId, appendMode = false) {
+      groupSelectTargetId = targetInputId;
+      groupSelectAppendMode = appendMode;
+      document.getElementById("group-modal").classList.add("active");
+      document.getElementById("group-search").value = "";
+      
+      const container = document.getElementById("group-list-container");
+      container.innerHTML = "加载中...";
+      
+      try {
+        const res = await fetch("/api/groups");
+        cachedGroups = await res.json();
+        filterGroups();
+      } catch (e) {
+        container.innerHTML = "加载失败，请确保 OneBot 机器人已连接。";
+      }
+    }
+
+    function closeGroupSelector() {
+      document.getElementById("group-modal").classList.remove("active");
+    }
+
+    function filterGroups() {
+      const qs = document.getElementById("group-search").value.toLowerCase();
+      const container = document.getElementById("group-list-container");
+      
+      if (!cachedGroups || cachedGroups.length === 0) {
+        container.innerHTML = "未获取到群列表，可能机器人未加群或不支持该 API。";
+        return;
+      }
+      
+      let html = "";
+      for (const group of cachedGroups) {
+        if (!qs || String(group.group_id).includes(qs) || String(group.group_name).toLowerCase().includes(qs)) {
+          html += `<div class="group-item" onclick="selectGroup('${group.group_id}')">
+            <span class="group-name">${escapeHtml(group.group_name)}</span>
+            <span class="group-id">${group.group_id}</span>
+          </div>`;
+        }
+      }
+      container.innerHTML = html || `<div class="muted">无匹配结果</div>`;
+    }
+
+    function selectGroup(groupId) {
+      const el = document.getElementById(groupSelectTargetId);
+      if (el) {
+        if (groupSelectAppendMode) {
+          const currentVal = el.value.trim();
+          if (currentVal) {
+            el.value = currentVal + "\n" + groupId;
+          } else {
+            el.value = groupId;
+          }
+        } else {
+          el.value = groupId;
+        }
+      }
+      closeGroupSelector();
+    }
   </script>
 </body>
 </html>

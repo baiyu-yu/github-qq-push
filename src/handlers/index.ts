@@ -5,6 +5,7 @@ import { handlePush } from "./push";
 import { handleRelease } from "./release";
 import { handleStar } from "./star";
 import { handleFork } from "./fork";
+import { handleComment } from "./comment";
 
 /**
  * Route GitHub webhook events to their handlers.
@@ -14,6 +15,11 @@ export async function routeEvent(
   payload: any,
   bot: OneBotClient
 ): Promise<void> {
+  const repoName = payload.repository?.full_name || "unknown";
+  console.log(
+    `[Router] Routing event: ${event}${payload.action ? `/${payload.action}` : ""} from ${repoName}`
+  );
+
   switch (event) {
     case "issues":
       await handleIssues(payload, bot);
@@ -40,9 +46,16 @@ export async function routeEvent(
       await handleFork(payload, bot);
       break;
 
+    case "issue_comment":
+    case "commit_comment":
+    case "pull_request_review":
+    case "pull_request_review_comment":
+      await handleComment(event, payload, bot);
+      break;
+
     case "ping":
       console.log(
-        `[Router] Ping received from ${payload.repository?.full_name || "unknown"}: ${payload.zen || ""}`
+        `[Router] Ping received from ${repoName}: ${payload.zen || ""}`
       );
       break;
 
