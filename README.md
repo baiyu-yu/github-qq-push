@@ -56,6 +56,26 @@
 4. **通过网页配置**:
    在浏览器访问 `http://localhost:7890`。在“全局配置”选项卡中输入您的 GitHub 个人访问令牌 (PAT) 和 NapCat 的 WebSocket 地址（例如 `ws://127.0.0.1:3001`）。
 
+## Docker 部署 (推荐)
+
+如果您熟悉 Docker，可以使用以下方式快速部署，无需担心环境依赖：
+
+1. **构建或拉取镜像**:
+   ```bash
+   docker build -t github-qq-push .
+   ```
+
+2. **运行容器**:
+   ```bash
+   docker run -d \
+     --name github-qq-push \
+     -p 7890:7890 \
+     -v $(pwd)/config.json:/app/config.json \
+     github-qq-push
+   ```
+   > [!TIP]
+   > 建议将 `config.json` 挂载到宿主机，以便持久化存储配置信息。
+
 ## 可用指令
 
 在 QQ 群内，机器人支持以下指令：
