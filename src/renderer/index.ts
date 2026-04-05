@@ -76,7 +76,7 @@ export async function renderTemplate(
 
     const page = await browser!.newPage();
     try {
-      await page.setViewport({ width: options.width || 600, height: 100 });
+      await page.setViewport({ width: options.width || 800, height: 100, deviceScaleFactor: 2 });
       await page.setContent(html, { waitUntil: "networkidle0", timeout: 15000 });
 
     // Auto-calculate content height and enforce max height limits
@@ -95,7 +95,7 @@ export async function renderTemplate(
       type: "jpeg",
       quality: renderCfg.image_quality,
       fullPage: fullPage, // If max_height is 0, fullPage is true
-      clip: fullPage ? undefined : { x: 0, y: 0, width: 600, height: finalHeight },
+      clip: fullPage ? undefined : { x: 0, y: 0, width: 800, height: finalHeight },
     });
 
     return Buffer.from(screenshot).toString("base64");

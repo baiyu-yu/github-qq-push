@@ -679,6 +679,57 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="edit-events-modal" onclick="if(event.target === this) closeEditEventsModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>编辑订阅事件</h3>
+        <button class="modal-close" onclick="closeEditEventsModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 16px;">
+          <strong>仓库:</strong> <span id="edit-repo-name" style="color: var(--accent);"></span>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 500;">选择要订阅的事件类型:</label>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="push" class="event-checkbox" style="cursor: pointer;">
+              <span>Push (代码推送)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="issues" class="event-checkbox" style="cursor: pointer;">
+              <span>Issues (议题)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="pull_request" class="event-checkbox" style="cursor: pointer;">
+              <span>Pull Request (PR)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="release" class="event-checkbox" style="cursor: pointer;">
+              <span>Release (发布)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="star" class="event-checkbox" style="cursor: pointer;">
+              <span>Star (星标)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="fork" class="event-checkbox" style="cursor: pointer;">
+              <span>Fork (分支)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="issue_comment" class="event-checkbox" style="cursor: pointer;">
+              <span>Issue Comment (评论)</span>
+            </label>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--card-border);">
+          <button class="btn secondary" onclick="closeEditEventsModal()">取消</button>
+          <button class="btn" onclick="saveEditedEvents()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentConfig = null;
     let allLogs = [];
@@ -904,7 +955,10 @@
         return `
           <tr>
             <td style="font-weight: 500;">${escapeHtml(sub.repo)}</td>
-            <td>${eventsHtml || '<span class="muted">无事件配置</span>'}</td>
+            <td>
+              ${eventsHtml || '<span class="muted">无事件配置</span>'}
+              <button class="btn secondary" style="padding: 6px 12px; font-size: 12px; margin-left: 8px;" onclick="openEditEventsModal(${repoIdx})">编辑事件</button>
+            </td>
             <td>${targetsHtml || '<span class="muted">无目标配置</span>'}</td>
             <td style="text-align:right"><button class="btn danger" style="padding: 8px 14px;" onclick="removeRepo(${repoIdx})">移除</button></td>
           </tr>
@@ -1066,6 +1120,43 @@
         }
       }
       closeGroupSelector();
+    }
+
+    // --- Edit Events Modal ---
+    let editingRepoIndex = -1;
+
+    function openEditEventsModal(repoIndex) {
+      editingRepoIndex = repoIndex;
+      const sub = currentConfig.subscriptions[repoIndex];
+      document.getElementById("edit-repo-name").textContent = sub.repo;
+      
+      // Reset all checkboxes
+      document.querySelectorAll(".event-checkbox").forEach(cb => {
+        cb.checked = (sub.events || []).includes(cb.value);
+      });
+      
+      document.getElementById("edit-events-modal").classList.add("active");
+    }
+
+    function closeEditEventsModal() {
+      document.getElementById("edit-events-modal").classList.remove("active");
+      editingRepoIndex = -1;
+    }
+
+    function saveEditedEvents() {
+      if (editingRepoIndex < 0) return;
+      
+      const selectedEvents = Array.from(document.querySelectorAll(".event-checkbox:checked"))
+        .map(cb => cb.value);
+      
+      if (selectedEvents.length === 0) {
+        alert("请至少选择一个事件类型");
+        return;
+      }
+      
+      currentConfig.subscriptions[editingRepoIndex].events = selectedEvents;
+      closeEditEventsModal();
+      pushConfigUpdate();
     }
   </script>
 </body>

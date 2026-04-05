@@ -22,10 +22,13 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install system dependencies for Puppeteer (Chromium)
+# Install system dependencies for Puppeteer (Chromium) and Chinese fonts
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     fonts-liberation \
+    fonts-noto-cjk \
+    fonts-wqy-zenhei \
+    fonts-wqy-microhei \
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
