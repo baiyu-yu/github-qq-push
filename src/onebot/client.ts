@@ -26,6 +26,9 @@ export class OneBotClient {
   private readonly HEARTBEAT_INTERVAL = 30000;
   private readonly PONG_TIMEOUT = 10000;
   
+  private messageMetadata = new Map<string, string>();
+  private readonly MAX_METADATA_SIZE = 1000; 
+  
   public onMessageCallback: ((msg: any) => Promise<void>) | null = null;
 
   constructor(config: OneBotConfig) {
@@ -90,6 +93,19 @@ export class OneBotClient {
 
   public getBotInfo() {
     return this.botInfo;
+  }
+
+  private storeMessageMetadata(messageId: string, metadata: string) {
+    this.messageMetadata.set(messageId, metadata);
+    
+    if (this.messageMetadata.size > this.MAX_METADATA_SIZE) {
+      const firstKey = this.messageMetadata.keys().next().value;
+      if (firstKey) this.messageMetadata.delete(firstKey);
+    }
+  }
+
+  public getMessageMetadata(messageId: string): string | undefined {
+    return this.messageMetadata.get(messageId);
   }
 
   public connect(): void {
@@ -297,12 +313,17 @@ export class OneBotClient {
   ): Promise<void> {
     const message = `[CQ:image,file=base64://${imageBase64}]`;
     try {
-      await this.callApi("send_group_msg", {
+      const result = await this.callApi("send_group_msg", {
         group_id: Number(groupId),
         message,
       });
+      
       const preview = fallbackText ? ` (${fallbackText.slice(0, 30)}...)` : "";
       console.log(`[OneBot] Sent image to group ${groupId}${preview}`);
+      
+      if (fallbackText && result?.message_id) {
+        this.storeMessageMetadata(String(result.message_id), fallbackText);
+      }
     } catch (e) {
       console.error(`[OneBot] Failed to send image to group ${groupId}:`, e);
       // Fallback to text
@@ -339,12 +360,16 @@ export class OneBotClient {
   ): Promise<void> {
     const message = `[CQ:image,file=base64://${imageBase64}]`;
     try {
-      await this.callApi("send_private_msg", {
+      const result = await this.callApi("send_private_msg", {
         user_id: Number(userId),
         message,
       });
       const preview = fallbackText ? ` (${fallbackText.slice(0, 30)}...)` : "";
       console.log(`[OneBot] Sent image to user ${userId}${preview}`);
+      
+      if (fallbackText && result?.message_id) {
+        this.storeMessageMetadata(String(result.message_id), fallbackText);
+      }
     } catch (e) {
       console.error(`[OneBot] Failed to send image to user ${userId}:`, e);
       if (fallbackText) {
