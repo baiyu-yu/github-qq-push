@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   github-qq-push:
-    build: .
+    image: baiyuyuyu/github-qq-push:latest  # 替换为你的镜像地址
     container_name: github-qq-push
     restart: unless-stopped
     ports:
