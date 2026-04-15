@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     fonts-noto-color-emoji \
     fonts-noto-cjk \
+    libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
     libcups2 \
@@ -37,9 +38,12 @@ RUN apt-get update && apt-get install -y \
     libgtk-3-0 \
     libnspr4 \
     libnss3 \
+    libx11-6 \
+    libxcb1 \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
+    libxss1 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
