@@ -392,7 +392,8 @@ body {
 }
 
 .star-icon {
-  font-size: 28px;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 /* Release specific */

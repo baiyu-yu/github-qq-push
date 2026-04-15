@@ -11,7 +11,8 @@ let browser: Browser | null = null;
  */
 export async function initRenderer(): Promise<void> {
   if (browser) return;
-  browser = await puppeteer.launch({
+  
+  const launchOptions: any = {
     headless: true,
     args: [
       "--no-sandbox",
@@ -19,7 +20,14 @@ export async function initRenderer(): Promise<void> {
       "--disable-gpu",
       "--disable-dev-shm-usage",
     ],
-  });
+  };
+  
+  // Use custom Chrome path if specified in environment
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  
+  browser = await puppeteer.launch(launchOptions);
   console.log("[Renderer] Puppeteer browser launched");
 }
 

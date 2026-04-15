@@ -1,7 +1,9 @@
 node_modules
 dist
 config.json
+data
 .git
+.github
 .vscode
 *.log
 npm-debug.log*
@@ -9,3 +11,10 @@ yarn-debug.log*
 yarn-error.log*
 .env
 .DS_Store
+*.md
+!README.md
+test-*.png
+docker-compose.yml
+Dockerfile
+.gitignore
+.gitattributes

@@ -161,7 +161,8 @@ export class GitHubEventPoller {
     const lastId = getLastEventId(repoFullName);
 
     if (!lastId) {
-      console.log(`[Poller] ${repoFullName}: missing baseline, initializing at event #${events[0].id}`);
+      // First time polling this repo - set baseline without processing events
+      console.log(`[Poller] ${repoFullName}: initializing baseline at event #${events[0].id}`);
       setLastEventId(repoFullName, String(events[0].id));
       return;
     }
