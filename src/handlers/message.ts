@@ -20,6 +20,48 @@ const repoTagRegex = /\[Repo\]\s*([\w.-]+\/[\w.-]+)/i;
 const prTagRegex = /\[PR\]\s*([\w.-]+\/[\w.-]+)#(\d+)/i;
 const issueTagRegex = /\[Issue\]\s*([\w.-]+\/[\w.-]+)#(\d+)/i;
 
+const VALID_EVENTS = [
+  "push",
+  "issues",
+  "pull_request",
+  "pull_request_review",
+  "pull_request_review_comment",
+  "release",
+  "star",
+  "fork",
+  "issue_comment",
+  "commit_comment",
+];
+
+const DEFAULT_EVENTS = [
+  "push",
+  "issues",
+  "pull_request",
+  "pull_request_review",
+  "pull_request_review_comment",
+  "release",
+  "star",
+  "fork",
+  "issue_comment",
+  "commit_comment",
+];
+
+// Cooldown between auto-replied GitHub link cards per target (10s)
+const AUTO_CARD_COOLDOWN_MS = 10 * 1000;
+const autoCardCooldowns = new Map<string, number>();
+
+function isValidRepoName(name: string): boolean {
+  return /^[\w.-]+\/[\w.-]+$/.test(name);
+}
+
+function canAutoReply(targetId: string): boolean {
+  const now = Date.now();
+  const last = autoCardCooldowns.get(targetId) || 0;
+  if (now - last < AUTO_CARD_COOLDOWN_MS) return false;
+  autoCardCooldowns.set(targetId, now);
+  return true;
+}
+
 function cleanRepoName(name: string) {
   return name.replace(/\.git$/, "");
 }
@@ -64,13 +106,20 @@ export async function handleMessage(
   const text = stripCqCodes(rawText);
   const prefix = getConfig().onebot.command_prefix || "/";
 
-  // Extremely verbose log for debugging
-  console.log(`[Message] Received: type=${messageType}, target=${targetId}, prefix="${prefix}", raw="${rawText}", text="${text}"`);
+  // Truncated log to avoid dumping full chat content into logs/WebUI
+  const preview = rawText.length > 120 ? rawText.slice(0, 120) + "..." : rawText;
+  console.log(`[Message] Received: type=${messageType}, target=${targetId}, text="${preview}"`);
 
   if (!["group", "private"].includes(messageType)) {
     console.log(`[Message] Ignoring non-group/private message type: ${messageType}`);
     return;
   }
+
+  const senderId = String(payload.user_id || payload.sender?.user_id || "");
+  const masters = getConfig().onebot.masters || [];
+  const isMaster = masters.includes(senderId);
+  const senderRole = messageType === "group" ? payload.sender?.role : undefined;
+  const isAdmin = isMaster || senderRole === "owner" || senderRole === "admin";
 
   if (text === `${prefix}status` || text === `${prefix}github status`) {
     console.log(`[Message] Matches status command`);
@@ -78,7 +127,10 @@ export async function handleMessage(
     const days = Math.floor(uptime / 86400);
     const hours = Math.floor((uptime % 86400) / 3600);
     const mins = Math.floor((uptime % 3600) / 60);
-    const subsCount = listSubscriptions({ type: "group", id: targetId }).length;
+    const subsCount = listSubscriptions({
+      type: messageType === "group" ? "group" : "private",
+      id: targetId,
+    }).length;
 
     let uptimeStr = "";
     if (days > 0) uptimeStr += `${days}天 `;
@@ -86,11 +138,24 @@ export async function handleMessage(
     if (mins > 0) uptimeStr += `${mins}分 `;
     if (!uptimeStr) uptimeStr = "<1分";
 
+    const conn = bot.getConnectionState();
+    let connText = "未知";
+    if (conn.connected) {
+      connText = "已连接";
+    } else if (conn.stopped) {
+      connText = `未连接（已停止重试 ${conn.attempts}/${conn.maxAttempts}）`;
+    } else {
+      connText = `连接中（重试 ${conn.attempts}/${conn.maxAttempts}）`;
+    }
+
+    const tokenCount = (getConfig().github.access_tokens || []).length;
+
     const reply = [
       "[GitHub QQ Push] 运行状态",
       `运行时间 (Uptime): ${uptimeStr.trim()}`,
-      "服务状态 (Service): OK",
-      `当前群组订阅数: ${subsCount}`,
+      `OneBot: ${connText}`,
+      `GitHub Token: ${tokenCount > 0 ? `已配置 ${tokenCount} 个` : "未配置（轮询可能受匿名限流）"}`,
+      `当前订阅数: ${subsCount}`,
     ].join("\n");
     await sendText(bot, messageType, targetId, reply);
     return;
@@ -103,12 +168,6 @@ export async function handleMessage(
   }
 
   if (messageType === "group") {
-    const senderId = String(payload.user_id || payload.sender?.user_id || "");
-    const masters = getConfig().onebot.masters || [];
-    const isMaster = masters.includes(senderId);
-    const senderRole = payload.sender?.role;
-    const isAdmin = isMaster || senderRole === "owner" || senderRole === "admin";
-
     if (text.startsWith(`${prefix}github off`)) {
       if (!isAdmin) {
         await bot.sendGroupText(targetId, "只有 Master、群主或管理员可以禁用推送。");
@@ -128,87 +187,128 @@ export async function handleMessage(
       await bot.sendGroupText(targetId, "本群 GitHub 推送已启用。");
       return;
     }
+  } else if (text.startsWith(`${prefix}github off`) || text.startsWith(`${prefix}github on`)) {
+    await bot.sendPrivateText(targetId, "开/关推送命令仅支持群聊使用。");
+    return;
+  }
 
+  if (messageType === "group" || isMaster) {
     if (text.startsWith(`${prefix}github sub `)) {
       if (!isAdmin) {
-        await bot.sendGroupText(targetId, "只有 Master、群主或管理员可以管理订阅。");
+        await sendText(bot, messageType, targetId, "只有 Master、群主或管理员可以管理订阅。");
         return;
       }
       const parts = text.split(/\s+/).filter(Boolean);
-      const targetRepo = parts[2];
-      if (!targetRepo || !targetRepo.includes("/")) {
-        await bot.sendGroupText(
+      const targetRepo = cleanRepoName(parts[2] || "");
+      if (!targetRepo || !isValidRepoName(targetRepo)) {
+        await sendText(
+          bot,
+          messageType,
           targetId,
-          `用法: ${prefix}github sub owner/repo [事件,以逗号或空格隔开]\n支持事件: push, issues, pull_request, pull_request_review, pull_request_review_comment, release, star, fork, issue_comment, commit_comment`
+          `仓库格式不正确，应为 owner/repo（例如 octocat/Hello-World）。\n用法: ${prefix}github sub owner/repo [事件]`
         );
         return;
       }
 
       const rawEvents = parts.slice(3).join(",").split(/[\s,]+/).filter(Boolean);
-      const events =
-        rawEvents.length > 0
-          ? rawEvents
-          : ["push", "issues", "pull_request", "pull_request_review", "release", "star", "fork", "issue_comment"];
-      addSubscription(cleanRepoName(targetRepo), events, {
-        type: "group",
+      const events = rawEvents.length > 0 ? rawEvents : DEFAULT_EVENTS;
+      const invalid = events.filter((e) => !VALID_EVENTS.includes(e));
+      if (invalid.length > 0) {
+        await sendText(
+          bot,
+          messageType,
+          targetId,
+          `未知事件: ${invalid.join(", ")}\n支持的事件: ${VALID_EVENTS.join(", ")}`
+        );
+        return;
+      }
+
+      // Verify the repository exists before subscribing, so typos do not
+      // silently create dead subscriptions.
+      const [owner, repoName] = targetRepo.split("/");
+      let canonicalName = targetRepo;
+      try {
+        const repo = await getRepo(owner, repoName);
+        canonicalName = repo.full_name;
+      } catch (e: any) {
+        if (e.status === 404) {
+          await sendText(bot, messageType, targetId, `仓库 ${targetRepo} 不存在或无权访问。`);
+        } else if (e.status === 403 && e.response?.headers?.["x-ratelimit-remaining"] === "0") {
+          await sendText(bot, messageType, targetId, "[GitHub API] 已达到限流，请稍后再试或在 WebUI 配置 Token。");
+        } else {
+          await sendText(bot, messageType, targetId, `验证仓库 ${targetRepo} 失败，请稍后再试。`);
+        }
+        return;
+      }
+
+      addSubscription(canonicalName, events, {
+        type: messageType === "group" ? "group" : "private",
         id: targetId,
       });
-      await bot.sendGroupText(
+      await sendText(
+        bot,
+        messageType,
         targetId,
-        `订阅成功: ${targetRepo}\n已订阅事件: ${events.join(", ")}`
+        `订阅成功: ${canonicalName}\n已订阅事件: ${events.join(", ")}`
       );
       return;
     }
 
     if (text.startsWith(`${prefix}github unsub `)) {
       if (!isAdmin) {
-        await bot.sendGroupText(targetId, "只有 Master、群主或管理员可以管理订阅。");
+        await sendText(bot, messageType, targetId, "只有 Master、群主或管理员可以管理订阅。");
         return;
       }
       const parts = text.split(/\s+/).filter(Boolean);
-      const targetRepo = parts[2];
-      if (!targetRepo) {
-        await bot.sendGroupText(targetId, `用法: ${prefix}github unsub owner/repo [事件,以逗号或空格隔开]`);
+      const targetRepo = cleanRepoName(parts[2] || "");
+      if (!targetRepo || !isValidRepoName(targetRepo)) {
+        await sendText(bot, messageType, targetId, `仓库格式不正确，应为 owner/repo。\n用法: ${prefix}github unsub owner/repo [事件]`);
         return;
       }
 
       const eventsToRemove = parts.slice(3).join(",").split(/[\s,]+/).filter(Boolean);
       const result = removeSubscription(
-        cleanRepoName(targetRepo),
-        { type: "group", id: targetId },
+        targetRepo,
+        { type: messageType === "group" ? "group" : "private", id: targetId },
         eventsToRemove.length > 0 ? eventsToRemove : undefined
       );
 
       if (!result.success) {
-        await bot.sendGroupText(targetId, `本群尚未订阅仓库 ${targetRepo} 或未包含指定的取消事件。`);
+        await sendText(bot, messageType, targetId, `尚未订阅仓库 ${targetRepo}，或未包含指定的取消事件。`);
       } else if (eventsToRemove.length > 0) {
         const removedStr = (result.removedEvents || []).join(", ");
         const remainingStr = (result.remainingEvents || []).length > 0
           ? (result.remainingEvents || []).join(", ")
           : "无 (已完全取消该仓库订阅)";
-        await bot.sendGroupText(
+        await sendText(
+          bot,
+          messageType,
           targetId,
           `已从 ${targetRepo} 移除事件: ${removedStr}\n当前剩余订阅事件: ${remainingStr}`
         );
       } else {
-        await bot.sendGroupText(targetId, `已取消订阅仓库: ${targetRepo}`);
+        await sendText(bot, messageType, targetId, `已取消订阅仓库: ${targetRepo}`);
       }
       return;
     }
 
-    if (text === `${prefix}github list`) {
-      console.log(`[Message] Matches list command`);
-      const subs = listSubscriptions({ type: "group", id: targetId });
-      if (subs.length === 0) {
-        await bot.sendGroupText(targetId, "本群暂无 GitHub 订阅。");
-        return;
-      }
-      const listText = subs
-        .map((s) => `- ${s.repo} (${s.events.join(", ")})`)
-        .join("\n");
-      await bot.sendGroupText(targetId, `当前订阅列表:\n${listText}`);
+  }
+
+  if (text === `${prefix}github list` && (messageType === "group" || messageType === "private")) {
+    console.log(`[Message] Matches list command`);
+    const subs = listSubscriptions({
+      type: messageType === "group" ? "group" : "private",
+      id: targetId,
+    });
+    if (subs.length === 0) {
+      await sendText(bot, messageType, targetId, "暂无 GitHub 订阅。");
       return;
     }
+    const listText = subs
+      .map((s) => `- ${s.repo} (${s.events.join(", ")})`)
+      .join("\n");
+    await sendText(bot, messageType, targetId, `当前订阅列表:\n${listText}`);
+    return;
   }
 
   if (text.startsWith(`${prefix}readme`)) {
@@ -288,7 +388,12 @@ export async function handleMessage(
 
   // Auto-parse PR URL (before repo URL to avoid false matches)
   const prUrlMatch = text.match(prUrlRegex);
-  if (prUrlMatch && !text.startsWith(prefix) && canAutoParseRepoCard(messageType, targetId)) {
+  if (
+    prUrlMatch &&
+    !text.startsWith(prefix) &&
+    canAutoParseRepoCard(messageType, targetId) &&
+    canAutoReply(targetId)
+  ) {
     await handlePrSummaryCard(
       prUrlMatch[1],
       cleanRepoName(prUrlMatch[2]),
@@ -302,7 +407,12 @@ export async function handleMessage(
 
   // Auto-parse Issue URL
   const issueUrlMatch = text.match(issueUrlRegex);
-  if (issueUrlMatch && !text.startsWith(prefix) && canAutoParseRepoCard(messageType, targetId)) {
+  if (
+    issueUrlMatch &&
+    !text.startsWith(prefix) &&
+    canAutoParseRepoCard(messageType, targetId) &&
+    canAutoReply(targetId)
+  ) {
     await handleIssueSummaryCard(
       issueUrlMatch[1],
       cleanRepoName(issueUrlMatch[2]),
@@ -316,7 +426,12 @@ export async function handleMessage(
 
   // Auto-parse Repo URL (lowest priority)
   const urlMatch = text.match(repoUrlRegex);
-  if (urlMatch && !text.startsWith(prefix) && canAutoParseRepoCard(messageType, targetId)) {
+  if (
+    urlMatch &&
+    !text.startsWith(prefix) &&
+    canAutoParseRepoCard(messageType, targetId) &&
+    canAutoReply(targetId)
+  ) {
     await handleRepoCard(
       urlMatch[1],
       cleanRepoName(urlMatch[2]),
@@ -531,7 +646,7 @@ async function handleRepoCard(
 
     const image = await renderTemplate("star", {
       repoFullName: repo.full_name,
-      repoDescription: repo.description || "No description",
+      repoDescription: escapeHtml(repo.description || "没有描述"),
       avatarUrl: getAvatarUrl(repo.owner.login),
       senderName: repo.owner.login,
       actionText: "Repository overview",
@@ -548,10 +663,20 @@ async function handleRepoCard(
     );
   } catch (e: any) {
     console.error(`[Message] Failed to fetch repo info for ${owner}/${repoName}:`, e.message);
-    if (e.status === 403 && e.response?.headers?.["x-ratelimit-remaining"] === "0") {
+    if (e.status === 404) {
       await bot.sendTextToTarget(
         { type: messageType, id: targetId },
-        "[GitHub API] Rate limit exceeded. Configure a GitHub token in WebUI."
+        `仓库 ${owner}/${repoName} 不存在或无权访问。`
+      );
+    } else if (e.status === 403 && e.response?.headers?.["x-ratelimit-remaining"] === "0") {
+      await bot.sendTextToTarget(
+        { type: messageType, id: targetId },
+        "[GitHub API] 已达到限流，请在 WebUI 配置 Token 后重试。"
+      );
+    } else {
+      await bot.sendTextToTarget(
+        { type: messageType, id: targetId },
+        `获取仓库 ${owner}/${repoName} 信息失败，请稍后再试。`
       );
     }
   }
@@ -592,11 +717,11 @@ async function handleReadmeCommand(
     await bot.sendImageToTarget(target, image, `[Repo] ${owner}/${repoName}\nREADME`);
   } catch (e: any) {
     console.error(`[Message] Failed to render README for ${owner}/${repoName}:`, e.message);
-    let errorMsg = "Failed to fetch README.";
+    let errorMsg = "获取 README 失败，请稍后再试。";
     if (e.status === 404) {
-      errorMsg = "README not found for this repository.";
+      errorMsg = "该仓库没有 README 文件。";
     } else if (e.status === 403 && e.response?.headers?.["x-ratelimit-remaining"] === "0") {
-      errorMsg = "[GitHub API] Rate limit exceeded. Configure a GitHub token in WebUI.";
+      errorMsg = "[GitHub API] 已达到限流，请在 WebUI 配置 Token 后重试。";
     }
     await bot.sendTextToTarget(target, errorMsg);
   }
@@ -636,7 +761,7 @@ async function handlePrCommand(
       const labelItems = pr.labels
         .map((l: any) => {
           const bg = l.color ? `#${l.color}` : "#30363d";
-          return `<span class="label" style="background: ${bg}33; color: #${l.color || "e6edf3"}; border-color: ${bg}55;">${l.name}</span>`;
+          return `<span class="label" style="background: ${bg}33; color: #${l.color || "e6edf3"}; border-color: ${bg}55;">${escapeHtml(l.name)}</span>`;
         })
         .join("");
       labelsHtml = `<div class="labels">${labelItems}</div>`;
@@ -683,7 +808,10 @@ async function handlePrCommand(
     );
   } catch (e: any) {
     console.error(`[Message] Failed to fetch PR for ${owner}/${repoName}#${prNumber}:`, e.message);
-    await bot.sendTextToTarget(target, "Failed to fetch PR details. Check repository and number.");
+    await bot.sendTextToTarget(
+      target,
+      "获取 PR 信息失败，请检查仓库和编号是否正确。"
+    );
   }
 }
 
@@ -762,7 +890,10 @@ async function handlePrSummaryCard(
     );
   } catch (e: any) {
     console.error(`[Message] Failed to fetch PR summary for ${owner}/${repoName}#${prNumber}:`, e.message);
-    await bot.sendTextToTarget(target, "Failed to fetch PR. Check repository and number.");
+    await bot.sendTextToTarget(
+      target,
+      "获取 PR 信息失败，请检查仓库和编号是否正确。"
+    );
   }
 }
 
@@ -828,7 +959,10 @@ async function handleIssueSummaryCard(
     );
   } catch (e: any) {
     console.error(`[Message] Failed to fetch Issue summary for ${owner}/${repoName}#${issueNumber}:`, e.message);
-    await bot.sendTextToTarget(target, "Failed to fetch Issue. Check repository and number.");
+    await bot.sendTextToTarget(
+      target,
+      "获取 Issue 信息失败，请检查仓库和编号是否正确。"
+    );
   }
 }
 
@@ -957,7 +1091,10 @@ async function handlePrDetailCommand(
     );
   } catch (e: any) {
     console.error(`[Message] Failed to fetch PR changes for ${owner}/${repoName}#${prNumber}:`, e.message);
-    await bot.sendTextToTarget(target, "Failed to fetch PR code changes. Check repository and number.");
+    await bot.sendTextToTarget(
+      target,
+      "获取 PR 代码变更失败，请检查仓库和编号是否正确。"
+    );
   }
 }
 

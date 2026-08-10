@@ -5,12 +5,21 @@ import { OneBotClient } from "../onebot/client";
 import { getLogs } from "../logger";
 import { serviceStartTime } from "../utils";
 import { initGitHubApi } from "../github/api";
+import { GitHubEventPoller } from "../github/poller";
+import { GitHubWebhookServer } from "../github/webhook";
 
-export function getWebUIRouter(bot: OneBotClient) {
+export interface WebUIDeps {
+  bot: OneBotClient;
+  poller: GitHubEventPoller;
+  webhookServer: GitHubWebhookServer;
+}
+
+export function getWebUIRouter({ bot, poller, webhookServer }: WebUIDeps) {
   const router = Router();
 
   // Get whole config
   router.get("/api/config", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
     res.json({
       config: getConfig(),
       state: getState(),
@@ -21,16 +30,78 @@ export function getWebUIRouter(bot: OneBotClient) {
   router.post("/api/config", async (req, res) => {
     try {
       const newConfig = req.body;
+
+      // Validate the essential shape BEFORE writing to disk, so a malformed
+      // request cannot corrupt config.json.
+      if (
+        !newConfig ||
+        typeof newConfig !== "object" ||
+        !newConfig.onebot ||
+        typeof newConfig.onebot.ws_url !== "string" ||
+        !newConfig.github ||
+        typeof newConfig.github.webhook_port !== "number"
+      ) {
+        res.status(400).json({
+          success: false,
+          error: "配置结构不完整：需要 onebot.ws_url 和 github.webhook_port。",
+        });
+        return;
+      }
+
+      // Normalize optional sections to prevent undefined access later
+      newConfig.subscriptions = Array.isArray(newConfig.subscriptions)
+        ? newConfig.subscriptions
+        : [];
+      newConfig.webui = newConfig.webui || { username: "admin", password: "" };
+      newConfig.render = newConfig.render || {
+        image_quality: 90,
+        max_height: 8000,
+        theme: "dark",
+      };
+      newConfig.github.access_tokens = Array.isArray(
+        newConfig.github.access_tokens
+      )
+        ? newConfig.github.access_tokens
+        : newConfig.github.access_token
+          ? [newConfig.github.access_token]
+          : [];
+
+      const oldGithub = getConfig().github;
+      const oldPollingEnabled = oldGithub.polling_enabled !== false;
+      const oldPollingInterval = oldGithub.polling_interval || 60;
+      const oldPort = oldGithub.webhook_port;
+
       saveConfig(newConfig);
-      
+
       // Re-initialize GitHub API to apply new tokens dynamically
       initGitHubApi(newConfig.github);
-      
+
       // Update bot if ws_url changed or reconnect is needed
       if (bot) {
         bot.updateConfig(newConfig.onebot);
       }
-      res.json({ success: true });
+
+      const newPollingEnabled = newConfig.github?.polling_enabled !== false;
+      const newPollingInterval = newConfig.github?.polling_interval || 60;
+      const newPort = newConfig.github?.webhook_port;
+
+      const pollingChanged =
+        oldPollingEnabled !== newPollingEnabled ||
+        oldPollingInterval !== newPollingInterval;
+      const portChanged = oldPort !== newPort;
+
+      if (pollingChanged && poller) {
+        poller.restart();
+      }
+
+      if (portChanged && webhookServer) {
+        webhookServer.restart();
+      }
+
+      res.json({
+        success: true,
+        restartRequired: { polling: pollingChanged, port: portChanged },
+      });
     } catch (e: any) {
       res.status(500).json({ success: false, error: e.message });
     }

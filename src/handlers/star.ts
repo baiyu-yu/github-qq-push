@@ -2,14 +2,16 @@ import { renderTemplate } from "../renderer";
 import { getAvatarUrl } from "../github/api";
 import { findSubscribers } from "../config";
 import { OneBotClient } from "../onebot/client";
+import { escapeHtml } from "../utils";
 
 export async function handleStar(
   payload: any,
   bot: OneBotClient
 ): Promise<void> {
   const action = payload.action;
-  // Only handle "created" (starred). Optionally also "deleted" (unstarred)
-  if (action !== "created") return;
+  // Webhook "watch" events send action "started"; the Events API (polling)
+  // is normalized to "created". Accept both so stars are not silently dropped.
+  if (action !== "created" && action !== "started") return;
 
   const repo = payload.repository;
   const sender = payload.sender;
@@ -17,7 +19,9 @@ export async function handleStar(
   const subscribers = findSubscribers(repo.full_name, "star");
   if (subscribers.length === 0) return;
 
-  const timestamp = new Date().toLocaleString("zh-CN");
+  const timestamp = payload.created_at
+    ? new Date(payload.created_at).toLocaleString("zh-CN")
+    : new Date().toLocaleString("zh-CN");
 
   const fallbackText =
     `[Star] ${sender.login} starred ${repo.full_name}\n` +
@@ -26,13 +30,13 @@ export async function handleStar(
   try {
     const image = await renderTemplate("star", {
       repoFullName: repo.full_name,
-      repoDescription: repo.description || "没有描述",
+      repoDescription: escapeHtml(repo.description || "没有描述"),
       avatarUrl: getAvatarUrl(sender.login),
       senderName: sender.login,
       actionText: "starred 了仓库",
       timestamp,
       starCount: repo.stargazers_count,
-      language: repo.language || "未知",
+      language: escapeHtml(repo.language || "未知"),
       forksCount: repo.forks_count || 0,
     });
 

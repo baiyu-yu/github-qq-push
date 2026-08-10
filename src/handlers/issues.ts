@@ -44,7 +44,7 @@ export async function handleIssues(
     const labelItems = issue.labels
       .map((l: any) => {
         const bg = l.color ? `#${l.color}` : "#30363d";
-        return `<span class="label" style="background: ${bg}33; color: #${l.color || 'e6edf3'}; border-color: ${bg}55;">${l.name}</span>`;
+        return `<span class="label" style="background: ${bg}33; color: #${l.color || 'e6edf3'}; border-color: ${bg}55;">${escapeHtml(l.name)}</span>`;
       })
       .join("");
     labelsHtml = `<div class="labels">${labelItems}</div>`;

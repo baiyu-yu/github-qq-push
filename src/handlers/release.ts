@@ -2,6 +2,7 @@ import { renderTemplate, markdownToHtml } from "../renderer";
 import { getAvatarUrl } from "../github/api";
 import { findSubscribers } from "../config";
 import { OneBotClient } from "../onebot/client";
+import { escapeHtml } from "../utils";
 
 export async function handleRelease(
   payload: any,
@@ -31,11 +32,11 @@ export async function handleRelease(
   try {
     const image = await renderTemplate("release", {
       repoFullName: repo.full_name,
-      releaseName: release.name || release.tag_name,
+      releaseName: escapeHtml(release.name || release.tag_name || ""),
       avatarUrl: getAvatarUrl(sender.login),
       authorName: sender.login,
       timestamp,
-      tagName: release.tag_name,
+      tagName: escapeHtml(release.tag_name || ""),
       bodyHtml: bodyHtml || '<span style="color: #8b949e;">没有释出说明</span>',
       assetsText,
     });

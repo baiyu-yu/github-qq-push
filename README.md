@@ -48,13 +48,27 @@
    npm install
    ```
 
-3. **启动服务**:
+3. **编译 TypeScript**:
+   ```bash
+   npm run build
+   ```
+
+4. **准备配置**: 复制 `config.example.json` 为 `config.json` 并填写你的配置。
+
+5. **启动服务**:
    ```bash
    npm start
    ```
 
-4. **通过网页配置**:
+6. **通过网页配置**:
    在浏览器访问 `http://localhost:7890`。在“全局配置”选项卡中输入您的 GitHub 个人访问令牌 (PAT) 和 NapCat 的 WebSocket 地址（例如 `ws://127.0.0.1:3001`）。
+
+> [!IMPORTANT]
+> **请务必在 WebUI 中设置管理密码**（全局配置 → WebUI 管理认证）。WebUI 可以读取和修改全部配置
+> （包括 GitHub Token、OneBot 令牌、Webhook 密钥），并且 Webhook 端口通常需要公网可达，
+> 如果不设密码，任何能访问该端口的人都可以控制机器人并窃取凭据。
+> 认证使用 HTTP Basic Auth：首次访问控制面板时浏览器会弹出登录框，
+> 用户名/密码即 `webui.username` / `webui.password`（默认用户名 `admin`）。
 
 ## Docker 部署 (推荐)
 
@@ -82,10 +96,15 @@
      --name github-qq-push \
      -p 7890:7890 \
      -v $(pwd)/config.json:/app/config.json \
+     -v $(pwd)/data:/app/data \
      github-qq-push
    ```
    > [!TIP]
    > 由于 Puppeteer 的高内存消耗，建议宿主机至少保留 1GB 内存。
+
+> [!NOTE]
+> `data/` 目录用于持久化运行时状态（群推送开关、轮询基线），请务必挂载，
+> 否则容器重建后会丢失群开关状态。
 
 ## 可用指令
 
@@ -99,7 +118,19 @@
 - `/github on` | `/github off`: 开启或关闭本群的推送功能（仅限管理员）。
 - `/readme owner/repo`: 获取仓库的 README 并以长图形式发送。
 
+Master 还可以在私聊中直接管理订阅（例如私聊机器人发送 `/github sub owner/repo`），
+订阅目标会指向你自己的 QQ（private 类型）。
+
 直接粘贴如 `https://github.com/owner/repo` 的链接，机器人会自动回复 Star 等信息的概览卡片。
+为防刷屏与消耗 GitHub API 额度，同一会话内自动链接卡片有 10 秒冷却，且仅对未以指令前缀开头、
+且符合 `link_card_group_mode` 配置的消息生效。
+
+## 说明
+
+- **轮询建议配置 GitHub Token**：未配置 Token 时使用 GitHub 匿名 API（约 60 次/小时），
+  默认 60 秒轮询一个仓库就会很快触发限流；配置多个 Token 会轮流使用以分担额度。
+- **Webhook 与轮询可同时开启**：事件会通过指纹去重，不会重复推送。
+- 运行测试：`npm test`（自动编译后执行单元测试）。
 
 ## Webhook 配置
 

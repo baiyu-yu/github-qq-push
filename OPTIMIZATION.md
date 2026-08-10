@@ -8,8 +8,8 @@
 - **精简系统依赖**：移除了不必要的系统包，只保留 Puppeteer 运行所需的最小依赖
 - **优化 Chromium 安装**：
   - 使用 `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true` 跳过 npm 安装时的自动下载
-  - 使用 `npx puppeteer browsers install chrome` 只安装必需的 Chrome 浏览器
-  - 设置 `PUPPETEER_EXECUTABLE_PATH` 环境变量指定浏览器路径
+  - 使用 `npx puppeteer browsers install chrome --path /app/.cache/puppeteer` 只安装必需的 Chrome 浏览器
+  - 设置 `PUPPETEER_CACHE_DIR` 指向该缓存目录，Puppeteer 启动时会自动从缓存定位浏览器
 - **添加 emoji 字体支持**：安装 `fonts-noto-color-emoji` 确保 emoji 正确渲染
 - **改进 .dockerignore**：排除更多不必要的文件（测试图片、文档等）
 

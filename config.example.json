@@ -14,12 +14,38 @@
     "link_card_group_mode": "all",
     "link_card_enabled_groups": []
   },
+  "webui": {
+    "username": "admin",
+    "password": ""
+  },
+  "render": {
+    "image_quality": 90,
+    "max_height": 8000,
+    "theme": "dark",
+    "concurrency": 2,
+    "max_queue_size": 50,
+    "max_screenshot_height": 30000
+  },
   "subscriptions": [
     {
       "repo": "owner/repo",
-      "events": ["push", "issues", "pull_request", "release", "star", "fork", "issue_comment"],
       "targets": [
-        { "type": "group", "id": "123456" }
+        {
+          "type": "group",
+          "id": "123456",
+          "events": [
+            "push",
+            "issues",
+            "pull_request",
+            "pull_request_review",
+            "pull_request_review_comment",
+            "release",
+            "star",
+            "fork",
+            "issue_comment",
+            "commit_comment"
+          ]
+        }
       ]
     }
   ]

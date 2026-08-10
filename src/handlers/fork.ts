@@ -2,6 +2,7 @@ import { renderTemplate } from "../renderer";
 import { getAvatarUrl } from "../github/api";
 import { findSubscribers } from "../config";
 import { OneBotClient } from "../onebot/client";
+import { escapeHtml } from "../utils";
 
 export async function handleFork(
   payload: any,
@@ -14,7 +15,9 @@ export async function handleFork(
   const subscribers = findSubscribers(repo.full_name, "fork");
   if (subscribers.length === 0) return;
 
-  const timestamp = new Date().toLocaleString("zh-CN");
+  const timestamp = payload.created_at
+    ? new Date(payload.created_at).toLocaleString("zh-CN")
+    : new Date().toLocaleString("zh-CN");
 
   const fallbackText =
     `[Fork] ${sender.login} forked ${repo.full_name}\n` +
@@ -24,7 +27,7 @@ export async function handleFork(
   try {
     const image = await renderTemplate("fork", {
       repoFullName: repo.full_name,
-      forkFullName: forkee.full_name,
+      forkFullName: escapeHtml(forkee.full_name),
       avatarUrl: getAvatarUrl(sender.login),
       senderName: sender.login,
       timestamp,

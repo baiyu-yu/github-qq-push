@@ -589,6 +589,22 @@
           </div>
         </div>
 
+        <h3 style="margin-top:30px; color: var(--accent);">WebUI 管理认证</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>登录用户名 (Username)</label>
+            <input id="cfg-webui-user" class="form-control" placeholder="admin">
+          </div>
+          <div class="form-group">
+            <label>登录密码 (Password) — 留空则管理面板无保护</label>
+            <input id="cfg-webui-pass" type="password" class="form-control" placeholder="请务必设置">
+          </div>
+          <div class="muted" style="grid-column: 1 / -1; font-size: 13px;">
+            警告：WebUI 可以读取/修改全部配置（含 Token 与密钥），且 Webhook 端口通常需要公网可达。
+            请务必设置密码，否则任何能访问该端口的人都能控制机器人并窃取凭据。
+          </div>
+        </div>
+
         <h3 style="margin-top:30px; color: var(--accent);">GitHub 基础设置</h3>
         <div class="form-grid">
           <div class="form-group">
@@ -692,6 +708,8 @@
       <div class="modal-body">
         <div style="margin-bottom: 16px;">
           <strong>仓库:</strong> <span id="edit-repo-name" style="color: var(--accent);"></span>
+          <br>
+          <strong>目标:</strong> <span id="edit-target-name" style="color: var(--accent);"></span>
         </div>
         <div style="margin-bottom: 16px;">
           <label style="display: block; margin-bottom: 8px; font-weight: 500;">选择要订阅的事件类型:</label>
@@ -723,6 +741,18 @@
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
               <input type="checkbox" value="issue_comment" class="event-checkbox" style="cursor: pointer;">
               <span>Issue Comment (评论)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="commit_comment" class="event-checkbox" style="cursor: pointer;">
+              <span>Commit Comment (提交评论)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="pull_request_review" class="event-checkbox" style="cursor: pointer;">
+              <span>PR Review (代码审查)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="pull_request_review_comment" class="event-checkbox" style="cursor: pointer;">
+              <span>PR Review Comment (审查评论)</span>
             </label>
           </div>
         </div>
@@ -818,6 +848,8 @@
           document.getElementById("cfg-ob-token").value = currentConfig.onebot.access_token || "";
           document.getElementById("cfg-ob-prefix").value = currentConfig.onebot.command_prefix || "/";
           document.getElementById("cfg-ob-masters").value = (currentConfig.onebot.masters || []).join("\n");
+          document.getElementById("cfg-webui-user").value = currentConfig.webui?.username || "admin";
+          document.getElementById("cfg-webui-pass").value = currentConfig.webui?.password || "";
           document.getElementById("cfg-gh-port").value = currentConfig.github.webhook_port || 7890;
           document.getElementById("cfg-gh-secret").value = currentConfig.github.webhook_secret || "";
           document.getElementById("cfg-gh-token").value = (currentConfig.github.access_tokens && currentConfig.github.access_tokens.length > 0) ? currentConfig.github.access_tokens.join("\n") : (currentConfig.github.access_token || "");
@@ -950,19 +982,29 @@
       }
 
       tbody.innerHTML = currentConfig.subscriptions.map((sub, repoIdx) => {
-        const eventsHtml = (sub.events || []).map(event => `<span class="tag">${escapeHtml(event)}</span>`).join("");
-        const targetsHtml = (sub.targets || []).map((target, targetIdx) => `
-          <span class="target-tag">
-            ${escapeHtml(target.type)}: ${escapeHtml(target.id)}
-            <a href="#" class="target-remove" onclick="removeTarget(${repoIdx}, ${targetIdx}); return false;">x</a>
-          </span>
-        `).join("");
+        const targetsHtml = (sub.targets || []).map((target, targetIdx) => {
+          const targetEvents = target.events || [];
+          const eventsHtml = targetEvents.length > 0
+            ? targetEvents.map(event => `<span class="tag">${escapeHtml(event)}</span>`).join("")
+            : '<span class="muted">无事件配置</span>';
+          return `
+            <div class="target-tag" style="display: block; margin-bottom: 8px; padding: 8px; border: 1px solid var(--card-border); border-radius: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <strong>${escapeHtml(target.type)}: ${escapeHtml(target.id)}</strong>
+                <a href="#" class="target-remove" onclick="removeTarget(${repoIdx}, ${targetIdx}); return false;">x</a>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                ${eventsHtml}
+                <button class="btn secondary" style="padding: 4px 10px; font-size: 12px;" onclick="openEditEventsModal(${repoIdx}, ${targetIdx})">编辑事件</button>
+              </div>
+            </div>
+          `;
+        }).join("");
         return `
           <tr>
             <td style="font-weight: 500;">${escapeHtml(sub.repo)}</td>
             <td>
-              ${eventsHtml || '<span class="muted">无事件配置</span>'}
-              <button class="btn secondary" style="padding: 6px 12px; font-size: 12px; margin-left: 8px;" onclick="openEditEventsModal(${repoIdx})">编辑事件</button>
+              <span class="muted">每个目标独立配置</span>
             </td>
             <td>${targetsHtml || '<span class="muted">无目标配置</span>'}</td>
             <td style="text-align:right"><button class="btn danger" style="padding: 8px 14px;" onclick="removeRepo(${repoIdx})">移除</button></td>
@@ -980,7 +1022,10 @@
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || "未知异常");
-        showMessage(elId, "保存成功 (Saved)");
+        let hint = "保存成功，已热更新";
+        if (data.restartRequired?.polling) hint += "；轮询设置已应用";
+        if (data.restartRequired?.port) hint += "；监听端口已切换，请用新端口重新访问";
+        showMessage(elId, hint);
         loadData();
       } catch (error) {
         showMessage(elId, `保存失败: ${error.message}`, true);
@@ -994,6 +1039,9 @@
       currentConfig.onebot.command_prefix = document.getElementById("cfg-ob-prefix").value || "/";
       const rawMasters = document.getElementById("cfg-ob-masters").value;
       currentConfig.onebot.masters = rawMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
+      currentConfig.webui = currentConfig.webui || {};
+      currentConfig.webui.username = document.getElementById("cfg-webui-user").value.trim() || "admin";
+      currentConfig.webui.password = document.getElementById("cfg-webui-pass").value;
       currentConfig.github.webhook_port = parseInt(document.getElementById("cfg-gh-port").value, 10) || 7890;
       currentConfig.github.webhook_secret = document.getElementById("cfg-gh-secret").value;
       const rawTokens = document.getElementById("cfg-gh-token").value;
@@ -1037,21 +1085,24 @@
       const repo = document.getElementById("add-repo").value.trim();
       const type = document.getElementById("add-type").value;
       const id = document.getElementById("add-id").value.trim();
-      if (!repo || !repo.includes("/") || !id) {
-        alert("格式错误：代码仓库必须是 owner/repo 的形式，并且目标 ID 无法留空。");
+      if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo) || !id) {
+        alert("格式错误：代码仓库必须是 owner/repo 的形式（仅允许字母、数字、-、_、.），并且目标 ID 无法留空。");
         return;
       }
       let sub = currentConfig.subscriptions.find(item => item.repo === repo);
       if (!sub) {
         sub = {
           repo,
-          events: ["push", "issues", "pull_request", "release", "star", "fork"],
           targets: [],
         };
         currentConfig.subscriptions.push(sub);
       }
       if (!sub.targets.some(target => target.type === type && target.id === id)) {
-        sub.targets.push({ type, id });
+        sub.targets.push({
+          type,
+          id,
+          events: ["push", "issues", "pull_request", "release", "star", "fork"],
+        });
       }
       document.getElementById("add-repo").value = "";
       document.getElementById("add-id").value = "";
@@ -1062,7 +1113,7 @@
     document.documentElement.setAttribute("data-theme", storedTheme);
     updateThemeButton();
     loadData();
-    setInterval(loadData, 3000);
+    setInterval(loadData, 10000);
 
     // --- Modal Group Selector ---
     let cachedGroups = [];
@@ -1131,15 +1182,19 @@
 
     // --- Edit Events Modal ---
     let editingRepoIndex = -1;
+    let editingTargetIndex = -1;
 
-    function openEditEventsModal(repoIndex) {
+    function openEditEventsModal(repoIndex, targetIndex) {
       editingRepoIndex = repoIndex;
+      editingTargetIndex = targetIndex;
       const sub = currentConfig.subscriptions[repoIndex];
+      const target = sub.targets[targetIndex];
       document.getElementById("edit-repo-name").textContent = sub.repo;
+      document.getElementById("edit-target-name").textContent = `${target.type}: ${target.id}`;
       
       // Reset all checkboxes
       document.querySelectorAll(".event-checkbox").forEach(cb => {
-        cb.checked = (sub.events || []).includes(cb.value);
+        cb.checked = (target.events || []).includes(cb.value);
       });
       
       document.getElementById("edit-events-modal").classList.add("active");
@@ -1148,10 +1203,11 @@
     function closeEditEventsModal() {
       document.getElementById("edit-events-modal").classList.remove("active");
       editingRepoIndex = -1;
+      editingTargetIndex = -1;
     }
 
     function saveEditedEvents() {
-      if (editingRepoIndex < 0) return;
+      if (editingRepoIndex < 0 || editingTargetIndex < 0) return;
       
       const selectedEvents = Array.from(document.querySelectorAll(".event-checkbox:checked"))
         .map(cb => cb.value);
@@ -1161,7 +1217,7 @@
         return;
       }
       
-      currentConfig.subscriptions[editingRepoIndex].events = selectedEvents;
+      currentConfig.subscriptions[editingRepoIndex].targets[editingTargetIndex].events = selectedEvents;
       closeEditEventsModal();
       pushConfigUpdate();
     }

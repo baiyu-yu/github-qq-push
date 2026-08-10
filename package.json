@@ -3,21 +3,27 @@
   "version": "1.0.0",
   "description": "GitHub event push service for QQ via OneBot forward WebSocket (NapCat)",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "test": "npm run build && node --test \"test/*.test.js\""
   },
   "dependencies": {
     "@octokit/rest": "^21.0.0",
     "express": "^4.21.0",
+    "marked": "^15.0.0",
     "puppeteer": "^23.0.0",
-    "ws": "^8.18.0",
-    "marked": "^15.0.0"
+    "sanitize-html": "^2.17.6",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
+    "@types/sanitize-html": "^2.16.1",
     "@types/ws": "^8.5.0",
     "ts-node": "^10.9.0",
     "typescript": "^5.6.0"

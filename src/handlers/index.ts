@@ -6,7 +6,12 @@ import { handleRelease } from "./release";
 import { handleStar } from "./star";
 import { handleFork } from "./fork";
 import { handleComment } from "./comment";
-import { getEventFingerprint, isEventProcessed, markEventProcessed } from "../github/dedup";
+import {
+  getEventFingerprint,
+  isEventProcessed,
+  markEventProcessed,
+  deleteProcessedEvent,
+} from "../github/dedup";
 
 /**
  * Route GitHub webhook events to their handlers.
@@ -28,53 +33,65 @@ export async function routeEvent(
     markEventProcessed(fingerprint);
   }
 
-  console.log(
-    `[Router] Routing event: ${event}${payload.action ? `/${payload.action}` : ""} from ${repoName}`
-  );
+  try {
+    console.log(
+      `[Router] Routing event: ${event}${payload.action ? `/${payload.action}` : ""} from ${repoName}`
+    );
 
-  switch (event) {
-    case "issues":
-      await handleIssues(payload, bot);
-      break;
+    switch (event) {
+      case "issues":
+        await handleIssues(payload, bot);
+        break;
 
-    case "pull_request":
-      await handlePullRequest(payload, bot);
-      break;
+      case "pull_request":
+        await handlePullRequest(payload, bot);
+        break;
 
-    case "push":
-      await handlePush(payload, bot);
-      break;
+      case "push":
+        await handlePush(payload, bot);
+        break;
 
-    case "release":
-      await handleRelease(payload, bot);
-      break;
+      case "release":
+        await handleRelease(payload, bot);
+        break;
 
-    case "star":
-    case "watch":
-      await handleStar(payload, bot);
-      break;
+      case "star":
+      case "watch":
+        await handleStar(payload, bot);
+        break;
 
-    case "fork":
-      await handleFork(payload, bot);
-      break;
+      case "fork":
+        await handleFork(payload, bot);
+        break;
 
-    case "issue_comment":
-    case "commit_comment":
-    case "pull_request_review":
-    case "pull_request_review_comment":
-      await handleComment(event, payload, bot);
-      break;
+      case "issue_comment":
+      case "commit_comment":
+      case "pull_request_review":
+      case "pull_request_review_comment":
+        await handleComment(event, payload, bot);
+        break;
 
-    case "ping":
-      console.log(
-        `[Router] Ping received from ${repoName}: ${payload.zen || ""}`
+      case "ping":
+        console.log(
+          `[Router] Ping received from ${repoName}: ${payload.zen || ""}`
+        );
+        break;
+
+      default:
+        console.log(
+          `[Router] Unhandled event: ${event}${payload.action ? `/${payload.action}` : ""}`
+        );
+        break;
+    }
+  } catch (e) {
+    // Roll back the dedup mark so a transient failure does not swallow the
+    // event until the 30-minute TTL expires (poller will retry on next round).
+    if (fingerprint) {
+      deleteProcessedEvent(fingerprint);
+      console.warn(
+        `[Router] Event failed, removed dedup mark (fingerprint: ${fingerprint})`
       );
-      break;
-
-    default:
-      console.log(
-        `[Router] Unhandled event: ${event}${payload.action ? `/${payload.action}` : ""}`
-      );
-      break;
+    }
+    throw e;
   }
 }

@@ -91,6 +91,9 @@ out
 .nuxt
 dist
 
+# Runtime state (polling baselines, group toggles)
+data/
+
 # Gatsby files
 .cache/
 # Comment in the public line in if your project uses Gatsby and not Next.js

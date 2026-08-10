@@ -24,17 +24,31 @@ export interface RenderConfig {
   image_quality: number; // 0-100
   max_height: number;    // 0 = unlimited
   theme: "light" | "dark";
+  concurrency?: number; // Concurrent Puppeteer renders, default 2 (min 1)
+  max_queue_size?: number; // Render backlog cap, default 50 (0 = fail fast, no queue)
+  max_screenshot_height?: number; // Full-page screenshot safety cap, default 30000 (0 = up to hard ceiling)
 }
 
 export interface SubscriptionTarget {
   type: "group" | "private";
   id: string;
+  /**
+   * Events subscribed for THIS target only (per-target isolation).
+   * Undefined/empty = legacy default events (kept for backward compatibility).
+   */
+  events?: string[];
 }
 
 export interface Subscription {
   repo: string;
-  events: string[];
   targets: SubscriptionTarget[];
+  /** @deprecated legacy block-level events, migrated to per-target on load */
+  events?: string[];
+}
+
+export interface WebUIConfig {
+  username?: string;
+  password?: string;
 }
 
 export interface AppConfig {
@@ -42,6 +56,7 @@ export interface AppConfig {
   github: GitHubConfig;
   render?: RenderConfig;
   subscriptions: Subscription[];
+  webui?: WebUIConfig;
 }
 
 let config: AppConfig;
@@ -100,11 +115,37 @@ export function loadConfig(): AppConfig {
       image_quality: 90,
       max_height: 8000,
       theme: "dark",
+      concurrency: 2,
+      max_queue_size: 50,
+      max_screenshot_height: 30000,
     };
+  }
+  if (config.render.concurrency === undefined) config.render.concurrency = 2;
+  if (config.render.max_queue_size === undefined) config.render.max_queue_size = 50;
+  if (config.render.max_screenshot_height === undefined) {
+    config.render.max_screenshot_height = 30000;
+  }
+  if (!config.webui) {
+    config.webui = { username: "admin", password: "" };
   }
   if (!config.subscriptions) {
     config.subscriptions = [];
   }
+
+  // Migrate legacy block-level events to per-target events
+  for (const sub of config.subscriptions) {
+    sub.targets = sub.targets || [];
+    if (sub.events && sub.events.length > 0) {
+      const legacyEvents = sub.events;
+      for (const t of sub.targets) {
+        if (!t.events || t.events.length === 0) {
+          t.events = [...legacyEvents];
+        }
+      }
+      delete sub.events;
+    }
+  }
+
   console.log(
     `[Config] Loaded ${config.subscriptions.length} subscription(s)`
   );
@@ -133,8 +174,15 @@ export function findSubscribers(
       sub.repo === repoFullName ||
       (sub.repo.endsWith("/*") &&
         repoFullName.startsWith(sub.repo.slice(0, -1)));
-    if (repoMatch && sub.events.includes(eventType)) {
-      targets.push(...sub.targets);
+    if (!repoMatch) continue;
+    for (const t of sub.targets) {
+      // Per-target events; undefined/empty means all events (legacy behavior)
+      const events = t.events;
+      const matches =
+        !events || events.length === 0 || events.includes(eventType);
+      if (matches) {
+        targets.push(t);
+      }
     }
   }
   
@@ -159,20 +207,24 @@ export function addSubscription(
 ): boolean {
   let sub = config.subscriptions.find((s) => s.repo === repoFullName);
   if (!sub) {
-    sub = { repo: repoFullName, events: [], targets: [] };
+    sub = { repo: repoFullName, targets: [] };
     config.subscriptions.push(sub);
   }
 
-  // Merge events
-  const eventSet = new Set([...sub.events, ...events]);
-  sub.events = Array.from(eventSet);
-
-  // Add target if not exists
-  const targetExists = sub.targets.some(
+  let existingTarget = sub.targets.find(
     (t) => t.type === target.type && t.id === target.id
   );
-  if (!targetExists) {
-    sub.targets.push(target);
+  if (!existingTarget) {
+    existingTarget = {
+      type: target.type,
+      id: target.id,
+      events: [...events],
+    };
+    sub.targets.push(existingTarget);
+  } else {
+    // Merge events for this target only
+    const eventSet = new Set([...(existingTarget.events || []), ...events]);
+    existingTarget.events = Array.from(eventSet);
   }
 
   saveConfigToDisk(config);
@@ -197,27 +249,26 @@ export function removeSubscription(
 
   if (targetIndex === -1) return { success: false }; // not subscribed
 
+  const targetEntry = sub.targets[targetIndex];
+  const targetEvents = targetEntry.events || [];
+
   if (eventsToRemove && eventsToRemove.length > 0) {
     const toRemoveSet = new Set(eventsToRemove);
-    const removed: string[] = [];
-    const remaining: string[] = [];
-
-    for (const ev of sub.events) {
-      if (toRemoveSet.has(ev)) {
-        removed.push(ev);
-      } else {
-        remaining.push(ev);
-      }
-    }
+    const removed = targetEvents.filter((ev) => toRemoveSet.has(ev));
+    const remaining = targetEvents.filter((ev) => !toRemoveSet.has(ev));
 
     if (removed.length === 0) {
-      return { success: false, removedEvents: [], remainingEvents: sub.events };
+      return {
+        success: false,
+        removedEvents: [],
+        remainingEvents: targetEvents,
+      };
     }
 
-    sub.events = remaining;
+    targetEntry.events = remaining;
 
-    // If no events left for this repo, remove target from this sub block
-    if (sub.events.length === 0) {
+    // If no events left for this target, remove the target from this repo block
+    if (remaining.length === 0) {
       sub.targets.splice(targetIndex, 1);
       if (sub.targets.length === 0) {
         config.subscriptions.splice(subIndex, 1);
@@ -225,7 +276,7 @@ export function removeSubscription(
     }
 
     saveConfigToDisk(config);
-    return { success: true, removedEvents: removed, remainingEvents: sub.events };
+    return { success: true, removedEvents: removed, remainingEvents: remaining };
   } else {
     // Remove target completely
     sub.targets.splice(targetIndex, 1);
@@ -233,7 +284,11 @@ export function removeSubscription(
       config.subscriptions.splice(subIndex, 1);
     }
     saveConfigToDisk(config);
-    return { success: true, removedEvents: sub.events, remainingEvents: [] };
+    return {
+      success: true,
+      removedEvents: targetEvents,
+      remainingEvents: [],
+    };
   }
 }
 
@@ -243,11 +298,11 @@ export function removeSubscription(
 export function listSubscriptions(target: SubscriptionTarget): { repo: string; events: string[] }[] {
   const result: { repo: string; events: string[] }[] = [];
   for (const sub of config.subscriptions) {
-    const isTarget = sub.targets.some(
+    const matchingTarget = sub.targets.find(
       (t) => t.type === target.type && t.id === target.id
     );
-    if (isTarget) {
-      result.push({ repo: sub.repo, events: sub.events });
+    if (matchingTarget) {
+      result.push({ repo: sub.repo, events: matchingTarget.events || [] });
     }
   }
   return result;

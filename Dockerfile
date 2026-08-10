@@ -62,10 +62,10 @@ COPY src/renderer/templates ./src/renderer/templates
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PUPPETEER_EXECUTABLE_PATH=/app/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome
+ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 
 # Expose Webhook and WebUI ports
-EXPOSE 7890 3000
+EXPOSE 7890
 
 # Start command
 CMD ["npm", "start"]

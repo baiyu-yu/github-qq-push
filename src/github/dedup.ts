@@ -66,9 +66,10 @@ export function getEventFingerprint(eventType: string, payload: any): string | n
 
     case "star":
     case "watch":
-      return payload.sender?.login
-        ? `${repo}:star:${action}:${payload.sender.login}`
-        : null;
+      // Ignore the action here: the webhook sends "started" while the
+      // poller normalizes WatchEvent to "created". Same person starring the
+      // same repo should always deduplicate to the same fingerprint.
+      return payload.sender?.login ? `${repo}:star:${payload.sender.login}` : null;
 
     case "fork":
       return payload.forkee?.id
@@ -102,6 +103,15 @@ export function markEventProcessed(fingerprint: string): void {
       PROCESSED_EVENTS.delete(oldestKey);
     }
   }
+}
+
+/**
+ * Remove a fingerprint from the processed cache.
+ * Used to roll back the dedup mark when routing fails, so a transient
+ * handler error does not swallow the event until the TTL expires.
+ */
+export function deleteProcessedEvent(fingerprint: string): void {
+  PROCESSED_EVENTS.delete(fingerprint);
 }
 
 /**

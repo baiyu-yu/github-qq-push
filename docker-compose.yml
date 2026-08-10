@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   github-qq-push:
-    image: baiyuyuyu/github-qq-push:latest  # 替换为你的镜像地址
+    image: ${GITHUB_QQ_PUSH_IMAGE:-baiyuyuyu/github-qq-push:latest}  # 可通过环境变量替换镜像地址
     container_name: github-qq-push
     restart: unless-stopped
     ports:
@@ -10,6 +10,8 @@ services:
     volumes:
       # 将宿主机的配置文件挂载到容器内，保证配置持久化
       - ./config.json:/app/config.json
+      # 持久化运行时状态（群推送开关、轮询基线）
+      - ./data:/app/data
       # 可选：如果需要持久化日志文件，可以取消下方注释
       # - ./logs:/app/logs
     environment:

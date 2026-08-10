@@ -146,12 +146,7 @@ export class GitHubEventPoller {
     const [owner, repo] = repoFullName.split("/");
     if (!owner || !repo) return;
 
-    const octokit = getOctokit();
-    const { data: events } = await octokit.activity.listRepoEvents({
-      owner,
-      repo,
-      per_page: 30,
-    });
+    const events = await this.fetchRepoEvents(owner, repo);
 
     if (!events || events.length === 0) {
       console.log(`[Poller] ${repoFullName}: No events found.`);
@@ -179,7 +174,8 @@ export class GitHubEventPoller {
     }
 
     if (!foundLastId && newEvents.length === events.length) {
-      // lastId was not found in the fetched window (e.g. baseline too old or gap > 30 events)
+      // lastId was not found even after paginating up to 300 events,
+      // meaning the service was offline long enough for a large gap.
       console.warn(`[Poller] ${repoFullName}: lastId #${lastId} not found in recent events. Updating baseline to #${events[0].id}`);
       setLastEventId(repoFullName, String(events[0].id));
       return;
@@ -189,13 +185,16 @@ export class GitHubEventPoller {
       return;
     }
 
-    // Update last event ID to the newest immediately
-    setLastEventId(repoFullName, String(newEvents[0].id));
-
     // Process in chronological order (oldest first)
     newEvents.reverse();
 
     console.log(`[Poller] ${repoFullName}: processing ${newEvents.length} new event(s)...`);
+
+    // Persist the baseline in one batch write after the round instead of
+    // atomically writing state.json after every single event (a 300-event
+    // catch-up would otherwise hammer the disk 300 times).
+    let lastProcessedId: string | null = null;
+    let failedAtId: string | null = null;
 
     for (const event of newEvents) {
       const eventType = this.mapEventType(event.type || "");
@@ -205,15 +204,56 @@ export class GitHubEventPoller {
       }
 
       console.log(`[Poller] Forwarding event ${eventType} (#${event.id}) for ${repoFullName}`);
-      const payload = await this.normalizePayload(event, repoFullName);
+      const payload = await normalizeEventPayload(event, repoFullName);
       if (payload) {
         try {
           await routeEvent(eventType, payload, this.bot);
+          // Advance the baseline only up to the first failed event: later
+          // successes are still delivered now, and the next round retries
+          // from the failure (dedup prevents duplicates in the meantime).
+          if (!failedAtId) {
+            lastProcessedId = String(event.id);
+          }
         } catch (e: any) {
           console.error(`[Poller] Failed to route event ${eventType}:`, e.message);
+          if (!failedAtId) {
+            failedAtId = String(event.id);
+          }
         }
       }
     }
+
+    if (lastProcessedId) {
+      setLastEventId(repoFullName, lastProcessedId);
+    }
+  }
+
+  /**
+   * Fetch repo events with pagination (up to 3 pages x 100 events) so a
+   * moderate outage does not silently drop missed events.
+   */
+  private async fetchRepoEvents(owner: string, repo: string): Promise<any[]> {
+    const octokit = getOctokit();
+    const all: any[] = [];
+    const seen = new Set<string>();
+    for (let page = 1; page <= 3; page++) {
+      const { data } = await octokit.activity.listRepoEvents({
+        owner,
+        repo,
+        per_page: 100,
+        page,
+      });
+      if (!data || data.length === 0) break;
+      for (const ev of data) {
+        const key = String(ev.id);
+        if (!seen.has(key)) {
+          seen.add(key);
+          all.push(ev);
+        }
+      }
+      if (data.length < 100) break;
+    }
+    return all;
   }
 
   private collectRepos(): string[] {
@@ -269,122 +309,138 @@ export class GitHubEventPoller {
     return map[apiType] || null;
   }
 
-  /**
-   * Normalize an Events API payload to look like a webhook payload.
-   */
-  private async normalizePayload(event: any, repoFullName: string): Promise<any> {
-    const payload = event.payload || {};
-    const [owner, repo] = repoFullName.split("/");
+}
 
-    // Add common fields that webhook payloads have
-    if (!payload.repository) {
-      payload.repository = {
-        full_name: repoFullName,
-        name: repo,
-        owner: { login: owner },
-      };
-    }
+/**
+ * Normalize an Events API payload to look like a webhook payload.
+ * Exported so it can be unit-tested without hitting the network.
+ */
+export async function normalizeEventPayload(
+  event: any,
+  repoFullName: string
+): Promise<any> {
+  const payload = event.payload || {};
+  const [owner, repo] = repoFullName.split("/");
 
-    if (!payload.sender && event.actor) {
-      payload.sender = {
-        login: event.actor.login,
-        avatar_url: event.actor.avatar_url,
-      };
-    }
-
-    // PushEvent normalization
-    if (event.type === "PushEvent") {
-      payload.ref = payload.ref || "";
-      if (payload.ref && !payload.ref.startsWith("refs/")) {
-        payload.ref = `refs/heads/${payload.ref}`;
-      }
-      payload.commits = payload.commits || [];
-      payload.compare = `https://github.com/${repoFullName}/compare/${payload.before?.substring(0, 12)}...${payload.head?.substring(0, 12)}`;
-    }
-
-    // IssuesEvent normalization
-    if (event.type === "IssuesEvent") {
-      payload.issue = payload.issue || {};
-    }
-
-    // PullRequestEvent normalization
-    // GitHub Events API (since late 2025) strips most fields from pull_request,
-    // including title. We must fetch the full PR if title is missing.
-    if (event.type === "PullRequestEvent") {
-      payload.pull_request = payload.pull_request || {};
-      const prNumber = payload.pull_request.number ?? payload.number;
-      if (!payload.pull_request.title && prNumber) {
-        try {
-          console.log(`[Poller] Fetching full PR details for ${repoFullName}#${prNumber} (title missing from Events API)`);
-          const fullPr = await getPullRequest(owner, repo, prNumber);
-          // Merge full PR data into the payload, preserving any fields already present
-          payload.pull_request = { ...fullPr, ...payload.pull_request };
-        } catch (e: any) {
-          console.warn(`[Poller] Failed to fetch PR details for ${repoFullName}#${prNumber}:`, e.message);
-        }
-      }
-    }
-
-    // ReleaseEvent normalization
-    if (event.type === "ReleaseEvent") {
-      payload.release = payload.release || {};
-    }
-
-    // WatchEvent -> Star normalization
-    if (event.type === "WatchEvent") {
-      payload.action = "created";
-    }
-
-    // ForkEvent normalization
-    if (event.type === "ForkEvent") {
-      payload.forkee = payload.forkee || {};
-    }
-
-    // IssueCommentEvent normalization
-    if (event.type === "IssueCommentEvent") {
-      payload.issue = payload.issue || {};
-      payload.comment = payload.comment || {};
-    }
-
-    // CommitCommentEvent normalization
-    if (event.type === "CommitCommentEvent") {
-      payload.comment = payload.comment || {};
-    }
-
-    // PullRequestReviewEvent normalization
-    // Same issue: title is stripped from pull_request in Events API.
-    if (event.type === "PullRequestReviewEvent") {
-      payload.pull_request = payload.pull_request || {};
-      payload.review = payload.review || {};
-      const prNumber = payload.pull_request.number;
-      if (!payload.pull_request.title && prNumber) {
-        try {
-          console.log(`[Poller] Fetching full PR details for ${repoFullName}#${prNumber} (review event, title missing)`);
-          const fullPr = await getPullRequest(owner, repo, prNumber);
-          payload.pull_request = { ...fullPr, ...payload.pull_request };
-        } catch (e: any) {
-          console.warn(`[Poller] Failed to fetch PR details for ${repoFullName}#${prNumber}:`, e.message);
-        }
-      }
-    }
-
-    // PullRequestReviewCommentEvent normalization
-    // Same issue: title is stripped from pull_request in Events API.
-    if (event.type === "PullRequestReviewCommentEvent") {
-      payload.pull_request = payload.pull_request || {};
-      payload.comment = payload.comment || {};
-      const prNumber = payload.pull_request.number;
-      if (!payload.pull_request.title && prNumber) {
-        try {
-          console.log(`[Poller] Fetching full PR details for ${repoFullName}#${prNumber} (review comment event, title missing)`);
-          const fullPr = await getPullRequest(owner, repo, prNumber);
-          payload.pull_request = { ...fullPr, ...payload.pull_request };
-        } catch (e: any) {
-          console.warn(`[Poller] Failed to fetch PR details for ${repoFullName}#${prNumber}:`, e.message);
-        }
-      }
-    }
-
-    return payload;
+  // Preserve the event time for handlers that want it (e.g. star/fork cards)
+  if (event.created_at && !payload.created_at) {
+    payload.created_at = event.created_at;
   }
+
+  // Add common fields that webhook payloads have
+  if (!payload.repository) {
+    payload.repository = {
+      full_name: repoFullName,
+      name: repo,
+      owner: { login: owner },
+    };
+  }
+
+  if (!payload.sender && event.actor) {
+    payload.sender = {
+      login: event.actor.login,
+      avatar_url: event.actor.avatar_url,
+    };
+  }
+
+  // PushEvent normalization
+  if (event.type === "PushEvent") {
+    payload.ref = payload.ref || "";
+    if (payload.ref && !payload.ref.startsWith("refs/")) {
+      payload.ref = `refs/heads/${payload.ref}`;
+    }
+    // The Events API returns commit objects with `sha` but no `id`, while the
+    // webhook payload uses `id`. Handlers rely on `c.id` for short SHAs, so
+    // map `sha` -> `id` here (otherwise polling push events always crash).
+    payload.commits = (payload.commits || []).map((c: any) => ({
+      ...c,
+      id: c.id || c.sha,
+    }));
+    payload.compare = `https://github.com/${repoFullName}/compare/${payload.before?.substring(0, 12)}...${payload.head?.substring(0, 12)}`;
+  }
+
+  // IssuesEvent normalization
+  if (event.type === "IssuesEvent") {
+    payload.issue = payload.issue || {};
+  }
+
+  // PullRequestEvent normalization
+  // GitHub Events API (since late 2025) strips most fields from pull_request,
+  // including title. We must fetch the full PR if title is missing.
+  if (event.type === "PullRequestEvent") {
+    payload.pull_request = payload.pull_request || {};
+    const prNumber = payload.pull_request.number ?? payload.number;
+    if (!payload.pull_request.title && prNumber) {
+      try {
+        console.log(`[Poller] Fetching full PR details for ${repoFullName}#${prNumber} (title missing from Events API)`);
+        const fullPr = await getPullRequest(owner, repo, prNumber);
+        // Merge full PR data into the payload, preserving any fields already present
+        payload.pull_request = { ...fullPr, ...payload.pull_request };
+      } catch (e: any) {
+        console.warn(`[Poller] Failed to fetch PR details for ${repoFullName}#${prNumber}:`, e.message);
+      }
+    }
+  }
+
+  // ReleaseEvent normalization
+  if (event.type === "ReleaseEvent") {
+    payload.release = payload.release || {};
+  }
+
+  // WatchEvent -> Star normalization
+  if (event.type === "WatchEvent") {
+    payload.action = "created";
+  }
+
+  // ForkEvent normalization
+  if (event.type === "ForkEvent") {
+    payload.forkee = payload.forkee || {};
+  }
+
+  // IssueCommentEvent normalization
+  if (event.type === "IssueCommentEvent") {
+    payload.issue = payload.issue || {};
+    payload.comment = payload.comment || {};
+  }
+
+  // CommitCommentEvent normalization
+  if (event.type === "CommitCommentEvent") {
+    payload.comment = payload.comment || {};
+  }
+
+  // PullRequestReviewEvent normalization
+  // Same issue: title is stripped from pull_request in Events API.
+  if (event.type === "PullRequestReviewEvent") {
+    payload.pull_request = payload.pull_request || {};
+    payload.review = payload.review || {};
+    const prNumber = payload.pull_request.number;
+    if (!payload.pull_request.title && prNumber) {
+      try {
+        console.log(`[Poller] Fetching full PR details for ${repoFullName}#${prNumber} (review event, title missing)`);
+        const fullPr = await getPullRequest(owner, repo, prNumber);
+        payload.pull_request = { ...fullPr, ...payload.pull_request };
+      } catch (e: any) {
+        console.warn(`[Poller] Failed to fetch PR details for ${repoFullName}#${prNumber}:`, e.message);
+      }
+    }
+  }
+
+  // PullRequestReviewCommentEvent normalization
+  // Same issue: title is stripped from pull_request in Events API.
+  if (event.type === "PullRequestReviewCommentEvent") {
+    payload.pull_request = payload.pull_request || {};
+    payload.comment = payload.comment || {};
+    const prNumber = payload.pull_request.number;
+    if (!payload.pull_request.title && prNumber) {
+      try {
+        console.log(`[Poller] Fetching full PR details for ${repoFullName}#${prNumber} (review comment event, title missing)`);
+        const fullPr = await getPullRequest(owner, repo, prNumber);
+        payload.pull_request = { ...fullPr, ...payload.pull_request };
+      } catch (e: any) {
+        console.warn(`[Poller] Failed to fetch PR details for ${repoFullName}#${prNumber}:`, e.message);
+      }
+    }
+  }
+
+  return payload;
 }
