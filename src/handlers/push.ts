@@ -78,7 +78,7 @@ export async function handlePush(
   try {
     const image = await renderTemplate("push", {
       repoFullName: repo.full_name,
-      avatarUrl: getAvatarUrl(sender.login),
+      avatarUrl: getAvatarUrl(sender?.login, sender?.avatar_url),
       pusherName: sender.login,
       commitCount: commits.length,
       branch: escapeHtml(branch),

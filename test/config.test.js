@@ -182,11 +182,13 @@ test("findSubscribers matches 'edited' subscribed event", () => {
   );
 });
 
-test("getAvatarUrl returns default avatar when login is missing or empty", () => {
+test("getAvatarUrl returns direct avatar CDN URL and handles payload avatarUrl/bot logins", () => {
   const { getAvatarUrl } = require("../dist/github/api");
-  assert.equal(getAvatarUrl("octocat"), "https://github.com/octocat.png?size=80");
-  assert.equal(getAvatarUrl(""), "https://github.com/github.png?size=80");
-  assert.equal(getAvatarUrl(undefined), "https://github.com/github.png?size=80");
+  assert.equal(getAvatarUrl("octocat"), "https://avatars.githubusercontent.com/octocat?size=80");
+  assert.equal(getAvatarUrl("github-actions[bot]"), "https://avatars.githubusercontent.com/github-actions?size=80");
+  assert.equal(getAvatarUrl("octocat", "https://avatars.githubusercontent.com/u/583231?v=4"), "https://avatars.githubusercontent.com/u/583231?v=4");
+  assert.equal(getAvatarUrl(""), "https://avatars.githubusercontent.com/u/9919?v=4");
+  assert.equal(getAvatarUrl(undefined), "https://avatars.githubusercontent.com/u/9919?v=4");
 });
 
 test("saveConfig persists config using atomicWriteFileSync without throwing", () => {

@@ -649,7 +649,7 @@ async function handleRepoCard(
     const image = await renderTemplate("star", {
       repoFullName: repo.full_name,
       repoDescription: escapeHtml(repo.description || "没有描述"),
-      avatarUrl: getAvatarUrl(repo.owner.login),
+      avatarUrl: getAvatarUrl(repo.owner?.login, repo.owner?.avatar_url),
       senderName: repo.owner.login,
       actionText: "Repository overview",
       timestamp,
@@ -791,7 +791,7 @@ async function handlePrCommand(
         repoFullName: `${owner}/${repoName}`,
         title: escapeHtml(pr.title || ""),
         number: pr.number,
-        avatarUrl: getAvatarUrl(pr.user?.login || "github"),
+        avatarUrl: getAvatarUrl(pr.user?.login, pr.user?.avatar_url),
         authorName: pr.user?.login || "unknown",
         actionText: "Pull Request details",
         timestamp,

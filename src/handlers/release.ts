@@ -33,7 +33,7 @@ export async function handleRelease(
     const image = await renderTemplate("release", {
       repoFullName: repo.full_name,
       releaseName: escapeHtml(release.name || release.tag_name || ""),
-      avatarUrl: getAvatarUrl(sender.login),
+      avatarUrl: getAvatarUrl(sender?.login, sender?.avatar_url),
       authorName: sender.login,
       timestamp,
       tagName: escapeHtml(release.tag_name || ""),

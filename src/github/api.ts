@@ -102,11 +102,26 @@ export async function getRelease(
 }
 
 /**
- * Fetch user avatar URL (returns URL string)
+ * Fetch user avatar URL.
+ * Prefers direct avatar URL if provided (e.g. sender.avatar_url from webhook payload),
+ * otherwise constructs a direct avatars.githubusercontent.com CDN URL.
  */
-export function getAvatarUrl(login?: string, size = 80): string {
-  const username = login && login.trim() ? login.trim() : "github";
-  return `https://github.com/${username}.png?size=${size}`;
+export function getAvatarUrl(
+  login?: string,
+  avatarUrl?: string,
+  size = 80
+): string {
+  if (avatarUrl && typeof avatarUrl === "string" && avatarUrl.startsWith("http")) {
+    return avatarUrl;
+  }
+  if (!login || typeof login !== "string" || !login.trim()) {
+    return "https://avatars.githubusercontent.com/u/9919?v=4";
+  }
+  const cleanLogin = login.replace(/\[bot\]$/i, "").trim();
+  if (!cleanLogin) {
+    return "https://avatars.githubusercontent.com/u/9919?v=4";
+  }
+  return `https://avatars.githubusercontent.com/${encodeURIComponent(cleanLogin)}?size=${size}`;
 }
 
 /**

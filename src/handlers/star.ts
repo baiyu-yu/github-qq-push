@@ -31,7 +31,7 @@ export async function handleStar(
     const image = await renderTemplate("star", {
       repoFullName: repo.full_name,
       repoDescription: escapeHtml(repo.description || "没有描述"),
-      avatarUrl: getAvatarUrl(sender.login),
+      avatarUrl: getAvatarUrl(sender?.login, sender?.avatar_url),
       senderName: sender.login,
       actionText: "starred 了仓库",
       timestamp,

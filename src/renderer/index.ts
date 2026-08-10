@@ -138,6 +138,19 @@ export async function renderTemplate(
                 resolve();
                 return;
               }
+
+              // Trigger inline onerror handler if an image completed with 0 naturalWidth (404/broken)
+              imgs.forEach((img) => {
+                if (img.complete && img.naturalWidth === 0 && img.getAttribute("onerror")) {
+                  const onerrorStr = img.getAttribute("onerror");
+                  if (onerrorStr) {
+                    try {
+                      new Function(onerrorStr).call(img);
+                    } catch (_) {}
+                  }
+                }
+              });
+
               let resolved = false;
               const finish = () => {
                 if (!resolved) {
@@ -147,19 +160,21 @@ export async function renderTemplate(
               };
               const timer = setTimeout(finish, 3000);
               let remaining = imgs.length;
+
+              const checkDone = () => {
+                remaining--;
+                if (remaining <= 0) {
+                  clearTimeout(timer);
+                  finish();
+                }
+              };
+
               imgs.forEach((img) => {
                 if (img.complete && img.naturalWidth > 0) {
                   remaining--;
                 } else {
-                  const onDone = () => {
-                    remaining--;
-                    if (remaining <= 0) {
-                      clearTimeout(timer);
-                      finish();
-                    }
-                  };
-                  img.addEventListener("load", onDone, { once: true });
-                  img.addEventListener("error", onDone, { once: true });
+                  img.addEventListener("load", checkDone, { once: true });
+                  img.addEventListener("error", checkDone, { once: true });
                 }
               });
               if (remaining <= 0) {

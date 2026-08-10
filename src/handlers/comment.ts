@@ -187,7 +187,7 @@ export async function handleComment(
       repoFullName: repo.full_name,
       title: escapeHtml(title || ""),
       number: numberStr,
-      avatarUrl: getAvatarUrl(sender.login),
+      avatarUrl: getAvatarUrl(sender?.login, sender?.avatar_url),
       authorName: sender.login,
       actionText,
       timestamp,

@@ -28,7 +28,7 @@ export async function handleFork(
     const image = await renderTemplate("fork", {
       repoFullName: repo.full_name,
       forkFullName: escapeHtml(forkee.full_name),
-      avatarUrl: getAvatarUrl(sender.login),
+      avatarUrl: getAvatarUrl(sender?.login, sender?.avatar_url),
       senderName: sender.login,
       timestamp,
       forksCount: repo.forks_count || 0,

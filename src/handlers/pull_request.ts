@@ -97,7 +97,7 @@ export async function handlePullRequest(
       repoFullName: repo.full_name,
       title: escapeHtml(pr.title || ""),
       number: pr.number,
-      avatarUrl: getAvatarUrl(sender.login),
+      avatarUrl: getAvatarUrl(sender?.login, sender?.avatar_url),
       authorName: sender.login,
       actionText: actionTextMap[action] || action,
       timestamp,
