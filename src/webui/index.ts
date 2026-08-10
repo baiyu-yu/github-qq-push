@@ -57,7 +57,19 @@ export function getWebUIRouter({ bot, poller, webhookServer }: WebUIDeps) {
         image_quality: 90,
         max_height: 8000,
         theme: "dark",
+        concurrency: 2,
+        max_queue_size: 50,
+        max_screenshot_height: 30000,
       };
+      if (newConfig.render.concurrency === undefined || Number.isNaN(Number(newConfig.render.concurrency))) {
+        newConfig.render.concurrency = 2;
+      }
+      if (newConfig.render.max_queue_size === undefined || Number.isNaN(Number(newConfig.render.max_queue_size))) {
+        newConfig.render.max_queue_size = 50;
+      }
+      if (newConfig.render.max_screenshot_height === undefined || Number.isNaN(Number(newConfig.render.max_screenshot_height))) {
+        newConfig.render.max_screenshot_height = 30000;
+      }
       newConfig.github.access_tokens = Array.isArray(
         newConfig.github.access_tokens
       )

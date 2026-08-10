@@ -133,19 +133,39 @@ export async function renderTemplate(
         await page.evaluate(
           () =>
             new Promise<void>((resolve) => {
-              if (document.readyState === "complete") {
+              const imgs = Array.from(document.images);
+              if (imgs.length === 0) {
                 resolve();
                 return;
               }
-              const timer = setTimeout(resolve, 2000);
-              window.addEventListener(
-                "load",
-                () => {
-                  clearTimeout(timer);
+              let resolved = false;
+              const finish = () => {
+                if (!resolved) {
+                  resolved = true;
                   resolve();
-                },
-                { once: true }
-              );
+                }
+              };
+              const timer = setTimeout(finish, 3000);
+              let remaining = imgs.length;
+              imgs.forEach((img) => {
+                if (img.complete && img.naturalWidth > 0) {
+                  remaining--;
+                } else {
+                  const onDone = () => {
+                    remaining--;
+                    if (remaining <= 0) {
+                      clearTimeout(timer);
+                      finish();
+                    }
+                  };
+                  img.addEventListener("load", onDone, { once: true });
+                  img.addEventListener("error", onDone, { once: true });
+                }
+              });
+              if (remaining <= 0) {
+                clearTimeout(timer);
+                finish();
+              }
             })
         );
 

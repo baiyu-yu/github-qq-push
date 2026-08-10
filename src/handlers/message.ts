@@ -31,6 +31,7 @@ const VALID_EVENTS = [
   "fork",
   "issue_comment",
   "commit_comment",
+  "edited",
 ];
 
 const DEFAULT_EVENTS = [
@@ -44,6 +45,7 @@ const DEFAULT_EVENTS = [
   "fork",
   "issue_comment",
   "commit_comment",
+  "edited",
 ];
 
 // Cooldown between auto-replied GitHub link cards per target (10s)

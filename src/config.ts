@@ -178,8 +178,19 @@ export function findSubscribers(
     for (const t of sub.targets) {
       // Per-target events; undefined/empty means all events (legacy behavior)
       const events = t.events;
+      const isEditableEvent = [
+        "issues",
+        "pull_request",
+        "issue_comment",
+        "commit_comment",
+        "pull_request_review_comment",
+      ].includes(eventType);
+
       const matches =
-        !events || events.length === 0 || events.includes(eventType);
+        !events ||
+        events.length === 0 ||
+        events.includes(eventType) ||
+        (isEditableEvent && events.includes("edited"));
       if (matches) {
         targets.push(t);
       }

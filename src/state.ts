@@ -67,11 +67,67 @@ export function saveConfig(newConfig: AppConfig): void {
 /**
  * Write a file atomically (write to temp file, then rename) to avoid
  * corrupting state/config on crash mid-write.
+ * Handles transient file locks (EBUSY / EPERM) on Windows and Docker volume mounts.
  */
 function atomicWriteFileSync(targetPath: string, content: string): void {
-  const tmpPath = `${targetPath}.tmp`;
-  fs.writeFileSync(tmpPath, content);
-  fs.renameSync(tmpPath, targetPath);
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const tmpPath = `${targetPath}.${Date.now()}.${randomSuffix}.tmp`;
+
+  try {
+    fs.writeFileSync(tmpPath, content);
+  } catch (err) {
+    // If temp file creation fails for any reason, try direct write
+    fs.writeFileSync(targetPath, content);
+    return;
+  }
+
+  let retries = 5;
+  while (retries > 0) {
+    try {
+      fs.renameSync(tmpPath, targetPath);
+      return;
+    } catch (err: any) {
+      if (
+        err.code === "EBUSY" ||
+        err.code === "EPERM" ||
+        err.code === "EACCES"
+      ) {
+        retries--;
+        if (retries === 0) {
+          try {
+            fs.copyFileSync(tmpPath, targetPath);
+            try {
+              fs.unlinkSync(tmpPath);
+            } catch (_) {}
+            return;
+          } catch (_) {
+            fs.writeFileSync(targetPath, content);
+            try {
+              fs.unlinkSync(tmpPath);
+            } catch (_) {}
+            return;
+          }
+        }
+        // Brief sync pause before retrying
+        const start = Date.now();
+        while (Date.now() - start < 50) {}
+      } else {
+        // Unexpected error, fallback to copy/direct write then cleanup
+        try {
+          fs.copyFileSync(tmpPath, targetPath);
+          try {
+            fs.unlinkSync(tmpPath);
+          } catch (_) {}
+        } catch (_) {
+          fs.writeFileSync(targetPath, content);
+          try {
+            fs.unlinkSync(tmpPath);
+          } catch (_) {}
+        }
+        return;
+      }
+    }
+  }
 }
 
 /**

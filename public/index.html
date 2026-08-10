@@ -656,6 +656,18 @@
             <label>渲染图片最大高度 (Render Max Height)</label>
             <input id="cfg-render-maxheight" type="number" class="form-control" min="0">
           </div>
+          <div class="form-group">
+            <label>渲染并发上限 (Render Concurrency)</label>
+            <input id="cfg-render-concurrency" type="number" class="form-control" min="1" placeholder="默认 2">
+          </div>
+          <div class="form-group">
+            <label>渲染队列上限 (Render Max Queue Size)</label>
+            <input id="cfg-render-maxqueuesize" type="number" class="form-control" min="0" placeholder="默认 50">
+          </div>
+          <div class="form-group">
+            <label>截图高度上限 (Max Screenshot Height)</label>
+            <input id="cfg-render-maxscreenshotheight" type="number" class="form-control" min="0" placeholder="默认 30000">
+          </div>
         </div>
 
         <h3 style="margin-top:30px; color: var(--accent);">推送目标限制</h3>
@@ -753,6 +765,10 @@
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
               <input type="checkbox" value="pull_request_review_comment" class="event-checkbox" style="cursor: pointer;">
               <span>PR Review Comment (审查评论)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
+              <input type="checkbox" value="edited" class="event-checkbox" style="cursor: pointer;">
+              <span>Edit (Issue/PR/评论修改)</span>
             </label>
           </div>
         </div>
@@ -857,6 +873,9 @@
           document.getElementById("cfg-polling-interval").value = currentConfig.github.polling_interval || 60;
           document.getElementById("cfg-render-quality").value = currentConfig.render?.image_quality ?? 90;
           document.getElementById("cfg-render-maxheight").value = currentConfig.render?.max_height ?? 8000;
+          document.getElementById("cfg-render-concurrency").value = currentConfig.render?.concurrency ?? 2;
+          document.getElementById("cfg-render-maxqueuesize").value = currentConfig.render?.max_queue_size ?? 50;
+          document.getElementById("cfg-render-maxscreenshotheight").value = currentConfig.render?.max_screenshot_height ?? 30000;
           document.getElementById("cfg-render-theme").value = currentConfig.render?.theme || "dark";
           document.getElementById("cfg-link-card-mode").value = currentConfig.github.link_card_group_mode || "all";
           document.getElementById("cfg-link-card-groups").value = (currentConfig.github.link_card_enabled_groups || []).join("\n");
@@ -1061,6 +1080,12 @@
       currentConfig.render.image_quality = parseInt(document.getElementById("cfg-render-quality").value, 10) || 90;
       const maxHeight = parseInt(document.getElementById("cfg-render-maxheight").value, 10);
       currentConfig.render.max_height = Number.isNaN(maxHeight) ? 8000 : maxHeight;
+      const concurrency = parseInt(document.getElementById("cfg-render-concurrency").value, 10);
+      currentConfig.render.concurrency = Number.isNaN(concurrency) || concurrency < 1 ? 2 : concurrency;
+      const maxQueue = parseInt(document.getElementById("cfg-render-maxqueuesize").value, 10);
+      currentConfig.render.max_queue_size = Number.isNaN(maxQueue) || maxQueue < 0 ? 50 : maxQueue;
+      const maxShotHeight = parseInt(document.getElementById("cfg-render-maxscreenshotheight").value, 10);
+      currentConfig.render.max_screenshot_height = Number.isNaN(maxShotHeight) || maxShotHeight < 0 ? 30000 : maxShotHeight;
       currentConfig.render.theme = document.getElementById("cfg-render-theme").value || "dark";
 
       pushConfigUpdate();
@@ -1101,7 +1126,19 @@
         sub.targets.push({
           type,
           id,
-          events: ["push", "issues", "pull_request", "release", "star", "fork"],
+          events: [
+            "push",
+            "issues",
+            "pull_request",
+            "pull_request_review",
+            "pull_request_review_comment",
+            "release",
+            "star",
+            "fork",
+            "issue_comment",
+            "commit_comment",
+            "edited",
+          ],
         });
       }
       document.getElementById("add-repo").value = "";

@@ -104,8 +104,9 @@ export async function getRelease(
 /**
  * Fetch user avatar URL (returns URL string)
  */
-export function getAvatarUrl(login: string, size = 80): string {
-  return `https://github.com/${login}.png?size=${size}`;
+export function getAvatarUrl(login?: string, size = 80): string {
+  const username = login && login.trim() ? login.trim() : "github";
+  return `https://github.com/${username}.png?size=${size}`;
 }
 
 /**
