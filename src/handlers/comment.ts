@@ -35,6 +35,7 @@ export async function handleComment(
   let actionText = "";
   let timestamp = "";
   let url = "";
+  let editNotes: string[] = [];
 
   switch (eventType) {
     case "issue_comment": {
@@ -52,14 +53,19 @@ export async function handleComment(
       number = issue.number;
       commentBody = comment.body || "";
       actionText = action === "created" ? "评论了" : "编辑了评论";
-      timestamp = new Date(comment.created_at).toLocaleString("zh-CN");
+      timestamp = new Date(
+        comment.updated_at || comment.created_at
+      ).toLocaleString("zh-CN");
       url = comment.html_url || issue.html_url || "";
+      if (action === "edited" && payload.changes?.body) {
+        editNotes.push("评论已修改");
+      }
       break;
     }
 
     case "commit_comment": {
       const action = payload.action;
-      if (action !== "created") return;
+      if (!["created", "edited"].includes(action)) return;
 
       const comment = payload.comment;
       if (!comment) return;
@@ -70,9 +76,15 @@ export async function handleComment(
       title = `Commit ${commitId.substring(0, 7)}`;
       number = "";
       commentBody = comment.body || "";
-      actionText = "评论了 Commit";
-      timestamp = new Date(comment.created_at).toLocaleString("zh-CN");
+      actionText =
+        action === "created" ? "评论了 Commit" : "编辑了 Commit 评论";
+      timestamp = new Date(
+        comment.updated_at || comment.created_at
+      ).toLocaleString("zh-CN");
       url = comment.html_url || "";
+      if (action === "edited" && payload.changes?.body) {
+        editNotes.push("评论已修改");
+      }
       break;
     }
 
@@ -121,7 +133,7 @@ export async function handleComment(
 
     case "pull_request_review_comment": {
       const action = payload.action;
-      if (action !== "created") return;
+      if (!["created", "edited"].includes(action)) return;
 
       const pr = payload.pull_request;
       const comment = payload.comment;
@@ -135,9 +147,15 @@ export async function handleComment(
       // Include file path context if available
       const filePath = comment.path ? `\`${comment.path}\`\n\n` : "";
       commentBody = filePath + (comment.body || "");
-      actionText = "在代码审查中评论了";
-      timestamp = new Date(comment.created_at).toLocaleString("zh-CN");
+      actionText =
+        action === "created" ? "在代码审查中评论了" : "编辑了审查评论";
+      timestamp = new Date(
+        comment.updated_at || comment.created_at
+      ).toLocaleString("zh-CN");
       url = comment.html_url || pr.html_url || "";
+      if (action === "edited" && payload.changes?.body) {
+        editNotes.push("评论已修改");
+      }
       break;
     }
 
@@ -149,10 +167,18 @@ export async function handleComment(
   const bodyHtml = markdownToHtml(commentBody);
   const numberStr = number ? `#${number}` : "";
 
+  let editInfo = "";
+  if (editNotes.length > 0) {
+    editInfo = `<div class="edit-info">${editNotes
+      .map(escapeHtml)
+      .join("<br>")}</div>`;
+  }
+  const editText =
+    editNotes.length > 0 ? `\n修改: ${editNotes.join("；")}` : "";
   const fallbackText =
     `[${eventLabel}] ${repo.full_name}${numberStr ? ` ${numberStr}` : ""}: ${title}\n` +
     `${sender.login} ${actionText}\n` +
-    (url ? `链接: ${url}` : "");
+    (url ? `链接: ${url}` : "") + editText;
 
   try {
     const image = await renderTemplate("comment", {
@@ -165,6 +191,7 @@ export async function handleComment(
       authorName: sender.login,
       actionText,
       timestamp,
+      editInfo,
       bodyHtml: bodyHtml || '<span style="color: #8b949e;">没有内容</span>',
     });
 

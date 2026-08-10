@@ -9,7 +9,7 @@ export async function handlePullRequest(
   bot: OneBotClient
 ): Promise<void> {
   const action = payload.action;
-  if (!["opened", "closed", "reopened"].includes(action)) return;
+  if (!["opened", "closed", "reopened", "edited"].includes(action)) return;
 
   const pr = payload.pull_request;
   const repo = payload.repository;
@@ -31,13 +31,38 @@ export async function handlePullRequest(
     }
   } else if (action === "reopened") {
     eventLabel = "PR Reopened";
+  } else if (action === "edited") {
+    eventLabel = "PR Edited";
   }
 
   const actionTextMap: Record<string, string> = {
     opened: "创建了 Pull Request",
     closed: pr.merged ? "合并了 Pull Request" : "关闭了 Pull Request",
     reopened: "重新打开了 Pull Request",
+    edited: "编辑了 Pull Request",
   };
+
+  // Title/body change context for edited events
+  let editNotes: string[] = [];
+  if (action === "edited") {
+    const changes = payload.changes || {};
+    if (
+      changes.title &&
+      changes.title.from !== undefined &&
+      changes.title.from !== pr.title
+    ) {
+      editNotes.push(`标题：${changes.title.from} → ${pr.title}`);
+    }
+    if (changes.body) {
+      editNotes.push("正文已修改");
+    }
+  }
+  let editInfo = "";
+  if (editNotes.length > 0) {
+    editInfo = `<div class="edit-info">${editNotes
+      .map(escapeHtml)
+      .join("<br>")}</div>`;
+  }
 
   // Labels HTML
   let labelsHtml = "";
@@ -52,13 +77,17 @@ export async function handlePullRequest(
   }
 
   const bodyHtml = markdownToHtml(pr.body || "");
-  const timestamp = new Date(pr.created_at).toLocaleString("zh-CN");
+  const timestamp = new Date(pr.updated_at || pr.created_at).toLocaleString(
+    "zh-CN"
+  );
 
+  const editText =
+    editNotes.length > 0 ? `\n修改: ${editNotes.join("；")}` : "";
   const fallbackText =
     `[${eventLabel}] ${repo.full_name}#${pr.number}: ${pr.title}\n` +
-    `作者: ${sender.login}\n` +
+    `作者: ${sender.login} ${actionTextMap[action] || action}\n` +
     `${pr.head?.label || ""} → ${pr.base?.label || ""}\n` +
-    `链接: ${pr.html_url}`;
+    `链接: ${pr.html_url}` + editText;
 
   try {
     const image = await renderTemplate("issue", {
@@ -73,6 +102,7 @@ export async function handlePullRequest(
       actionText: actionTextMap[action] || action,
       timestamp,
       labelsHtml,
+      editInfo,
       bodyHtml: bodyHtml || '<span style="color: #8b949e;">没有描述</span>',
       comments: pr.comments || 0,
       reactions: pr.reactions?.total_count || 0,

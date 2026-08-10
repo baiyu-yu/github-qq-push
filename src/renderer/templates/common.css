@@ -223,6 +223,18 @@ body {
   margin-left: auto;
 }
 
+/* Edit change context */
+.edit-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--badge-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 12px;
+  word-break: break-word;
+}
+
 /* Body / Description */
 .card-body {
   font-size: 14px;

@@ -9,8 +9,8 @@ export async function handleIssues(
   bot: OneBotClient
 ): Promise<void> {
   const action = payload.action;
-  // Only handle opened, closed, reopened
-  if (!["opened", "closed", "reopened"].includes(action)) return;
+  // Only handle opened, closed, reopened, edited
+  if (!["opened", "closed", "reopened", "edited"].includes(action)) return;
 
   const issue = payload.issue;
   const repo = payload.repository;
@@ -30,13 +30,38 @@ export async function handleIssues(
     eventLabel = "Issue Closed";
   } else if (action === "reopened") {
     eventLabel = "Issue Reopened";
+  } else if (action === "edited") {
+    eventLabel = "Issue Edited";
   }
 
   const actionTextMap: Record<string, string> = {
     opened: "创建了 Issue",
     closed: "关闭了 Issue",
     reopened: "重新打开了 Issue",
+    edited: "编辑了 Issue",
   };
+
+  // Title/body change context for edited events
+  let editNotes: string[] = [];
+  if (action === "edited") {
+    const changes = payload.changes || {};
+    if (
+      changes.title &&
+      changes.title.from !== undefined &&
+      changes.title.from !== issue.title
+    ) {
+      editNotes.push(`标题：${changes.title.from} → ${issue.title}`);
+    }
+    if (changes.body) {
+      editNotes.push("正文已修改");
+    }
+  }
+  let editInfo = "";
+  if (editNotes.length > 0) {
+    editInfo = `<div class="edit-info">${editNotes
+      .map(escapeHtml)
+      .join("<br>")}</div>`;
+  }
 
   // Labels HTML
   let labelsHtml = "";
@@ -51,12 +76,16 @@ export async function handleIssues(
   }
 
   const bodyHtml = markdownToHtml(issue.body || "");
-  const timestamp = new Date(issue.created_at).toLocaleString("zh-CN");
+  const timestamp = new Date(
+    issue.updated_at || issue.created_at
+  ).toLocaleString("zh-CN");
 
+  const editText =
+    editNotes.length > 0 ? `\n修改: ${editNotes.join("；")}` : "";
   const fallbackText =
     `[${eventLabel}] ${repo.full_name}#${issue.number}: ${issue.title}\n` +
-    `作者: ${sender.login}\n` +
-    `链接: ${issue.html_url}`;
+    `作者: ${sender.login} ${actionTextMap[action] || action}\n` +
+    `链接: ${issue.html_url}` + editText;
 
   try {
     const image = await renderTemplate("issue", {
@@ -71,6 +100,7 @@ export async function handleIssues(
       actionText: actionTextMap[action] || action,
       timestamp,
       labelsHtml,
+      editInfo,
       bodyHtml: bodyHtml || '<span style="color: #8b949e;">没有描述</span>',
       comments: issue.comments || 0,
       reactions: issue.reactions?.total_count || 0,
