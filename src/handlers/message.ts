@@ -16,9 +16,12 @@ const prUrlRegex =
   /https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)(?:[/?#]\S*)?/i;
 const issueUrlRegex =
   /https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)(?:[/?#]\S*)?/i;
+const commitUrlRegex =
+  /https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/commit\/([a-f0-9]+)(?:[/?#]\S*)?/i;
 const repoTagRegex = /\[Repo\]\s*([\w.-]+\/[\w.-]+)/i;
 const prTagRegex = /\[PR\]\s*([\w.-]+\/[\w.-]+)#(\d+)/i;
 const issueTagRegex = /\[Issue\]\s*([\w.-]+\/[\w.-]+)#(\d+)/i;
+const commitTagRegex = /\[Commit\]\s*([\w.-]+\/[\w.-]+)@([a-f0-9]+)/i;
 
 const VALID_EVENTS = [
   "push",
@@ -85,12 +88,20 @@ function buildHelpMessage(prefix: string) {
     `${prefix}github unsub <owner/repo> [events]`,
     `${prefix}github list`,
     `${prefix}readme <owner/repo>`,
-    `${prefix}readme <repo-url>`,
-    `${prefix}readme  (引用回复 repo link/card)`,
+    `${prefix}readme  (单仓库群直接发送，或引用回复 repo link/card)`,
     `${prefix}pr <owner/repo> <number>`,
-    `${prefix}pr <owner/repo>#<number>`,
+    `${prefix}pr <number>  (单仓库群直接发送)`,
     `${prefix}pr <pull-request-url>`,
     `${prefix}pr  (引用回复 PR link/card)`,
+    `${prefix}issue <owner/repo> <number>`,
+    `${prefix}issue <number>  (单仓库群直接发送)`,
+    `${prefix}issue <issue-url>`,
+    `${prefix}issue  (引用回复 Issue link/card)`,
+    `#<number>  (单仓库群直接发送 #数字 查看详情)`,
+    `${prefix}commit <owner/repo> <sha>`,
+    `${prefix}commit <owner/repo>@<sha>`,
+    `${prefix}commit <commit-url>`,
+    `${prefix}commit  (引用回复 Commit link/card)`,
     `${prefix}detail  (引用回复 PR card查看详细变更)`,
   ].join("\n");
 }
@@ -313,19 +324,46 @@ export async function handleMessage(
     return;
   }
 
+  // Shortcut: #123 directly fetches Issue/PR details if exactly 1 repo is bound
+  const sharpNumberMatch = text.match(/^[#＃]\s*(\d+)$/);
+  if (sharpNumberMatch) {
+    const subs = listSubscriptions({
+      type: messageType === "group" ? "group" : "private",
+      id: targetId,
+    });
+    if (subs.length === 1) {
+      console.log(`[Message] Matches #number shortcut for bound repo ${subs[0].repo}`);
+      const [owner, repo] = subs[0].repo.split("/");
+      const number = parseInt(sharpNumberMatch[1], 10);
+      await handleIssueCommand(owner, repo, number, targetId, messageType, bot);
+      return;
+    }
+  }
+
   if (text.startsWith(`${prefix}readme`)) {
     console.log(`[Message] Matches readme command`);
     const replyContext = await getReplyContextText(payload, bot);
-    const repoRef = parseRepoReference(
-      text.slice(`${prefix}readme`.length).trim(),
-      replyContext
-    );
+    const readmeArg = text.slice(`${prefix}readme`.length).trim();
+    let repoRef = parseRepoReference(readmeArg, replyContext);
+
+    // Fallback: if no repo given and target has exactly 1 subscription
+    if (!repoRef && !readmeArg) {
+      const subs = listSubscriptions({
+        type: messageType === "group" ? "group" : "private",
+        id: targetId,
+      });
+      if (subs.length === 1) {
+        const [owner, repo] = subs[0].repo.split("/");
+        repoRef = { owner, repo };
+      }
+    }
+
     if (!repoRef) {
       await sendText(
         bot,
         messageType,
         targetId,
-        `用法:\n${prefix}readme owner/repo\n${prefix}readme <repo-url>\n或者直接回复一个代码仓库链接/卡片发送 ${prefix}readme`
+        `用法:\n${prefix}readme owner/repo\n${prefix}readme <repo-url>\n${prefix}readme (单仓库群直接发送)\n或者直接回复一个代码仓库链接/卡片发送 ${prefix}readme`
       );
       return;
     }
@@ -336,16 +374,27 @@ export async function handleMessage(
   if (text.startsWith(`${prefix}pr`)) {
     console.log(`[Message] Matches pr command`);
     const replyContext = await getReplyContextText(payload, bot);
-    const prRef = parsePullRequestReference(
-      text.slice(`${prefix}pr`.length).trim(),
-      replyContext
-    );
+    const prArg = text.slice(`${prefix}pr`.length).trim();
+    let prRef = parsePullRequestReference(prArg, replyContext);
+
+    // Fallback: if prArg is just a number (e.g. /pr 123) and target has exactly 1 subscription
+    if (!prRef && /^\d+$/.test(prArg)) {
+      const subs = listSubscriptions({
+        type: messageType === "group" ? "group" : "private",
+        id: targetId,
+      });
+      if (subs.length === 1) {
+        const [owner, repo] = subs[0].repo.split("/");
+        prRef = { owner, repo, prNumber: parseInt(prArg, 10) };
+      }
+    }
+
     if (!prRef) {
       await sendText(
         bot,
         messageType,
         targetId,
-        `用法:\n${prefix}pr owner/repo 123\n${prefix}pr owner/repo#123\n${prefix}pr <pull-request-url>\n或者直接回复一个 PR 链接/卡片发送 ${prefix}pr`
+        `用法:\n${prefix}pr owner/repo 123\n${prefix}pr owner/repo#123\n${prefix}pr <pull-request-url>\n${prefix}pr <number> (单仓库群直接发送)\n或者直接回复一个 PR 链接/卡片发送 ${prefix}pr`
       );
       return;
     }
@@ -353,6 +402,44 @@ export async function handleMessage(
       prRef.owner,
       prRef.repo,
       prRef.prNumber,
+      targetId,
+      messageType,
+      bot
+    );
+    return;
+  }
+
+  if (text.startsWith(`${prefix}issue`)) {
+    console.log(`[Message] Matches issue command`);
+    const replyContext = await getReplyContextText(payload, bot);
+    const issueArg = text.slice(`${prefix}issue`.length).trim();
+    let issueRef = parseIssueReference(issueArg, replyContext);
+
+    // Fallback: if issueArg is just a number (e.g. /issue 123) and target has exactly 1 subscription
+    if (!issueRef && /^\d+$/.test(issueArg)) {
+      const subs = listSubscriptions({
+        type: messageType === "group" ? "group" : "private",
+        id: targetId,
+      });
+      if (subs.length === 1) {
+        const [owner, repo] = subs[0].repo.split("/");
+        issueRef = { owner, repo, issueNumber: parseInt(issueArg, 10) };
+      }
+    }
+
+    if (!issueRef) {
+      await sendText(
+        bot,
+        messageType,
+        targetId,
+        `用法:\n${prefix}issue owner/repo 123\n${prefix}issue owner/repo#123\n${prefix}issue <issue-url>\n${prefix}issue <number> (单仓库群直接发送)\n或者直接回复一个 Issue 链接/卡片发送 ${prefix}issue`
+      );
+      return;
+    }
+    await handleIssueCommand(
+      issueRef.owner,
+      issueRef.repo,
+      issueRef.issueNumber,
       targetId,
       messageType,
       bot
@@ -384,6 +471,52 @@ export async function handleMessage(
       messageType,
       targetId,
       `用法: 引用回复一个 PR 卡片，然后发送 ${prefix}detail 查看代码变更详情`
+    );
+    return;
+  }
+
+  if (text.startsWith(`${prefix}commit`)) {
+    console.log(`[Message] Matches commit command`);
+    const replyContext = await getReplyContextText(payload, bot);
+    const commitRef = parseCommitReference(
+      text.slice(`${prefix}commit`.length).trim(),
+      replyContext
+    );
+    if (!commitRef) {
+      await sendText(
+        bot,
+        messageType,
+        targetId,
+        `用法:\n${prefix}commit owner/repo <sha>\n${prefix}commit owner/repo@<sha>\n${prefix}commit <commit-url>\n或者直接回复一个 Commit 链接/卡片发送 ${prefix}commit`
+      );
+      return;
+    }
+    await handleCommitSummaryCard(
+      commitRef.owner,
+      commitRef.repo,
+      commitRef.commitSha,
+      targetId,
+      messageType,
+      bot
+    );
+    return;
+  }
+
+  // Auto-parse Commit URL (before repo URL to avoid false matches)
+  const commitUrlMatch = text.match(commitUrlRegex);
+  if (
+    commitUrlMatch &&
+    !text.startsWith(prefix) &&
+    canAutoParseRepoCard(messageType, targetId) &&
+    canAutoReply(targetId)
+  ) {
+    await handleCommitSummaryCard(
+      commitUrlMatch[1],
+      cleanRepoName(commitUrlMatch[2]),
+      commitUrlMatch[3],
+      targetId,
+      messageType,
+      bot
     );
     return;
   }
@@ -522,7 +655,7 @@ function extractMessageSearchText(message: any): string {
   return parts.join("\n");
 }
 
-function parseRepoReference(...sources: string[]): { owner: string; repo: string } | null {
+export function parseRepoReference(...sources: string[]): { owner: string; repo: string } | null {
   for (const source of sources) {
     const text = String(source || "").trim();
     if (!text) continue;
@@ -546,7 +679,7 @@ function parseRepoReference(...sources: string[]): { owner: string; repo: string
   return null;
 }
 
-function parsePullRequestReference(
+export function parsePullRequestReference(
   ...sources: string[]
 ): { owner: string; repo: string; prNumber: number } | null {
   for (const source of sources) {
@@ -592,7 +725,7 @@ function parsePullRequestReference(
   return null;
 }
 
-function parseIssueReference(
+export function parseIssueReference(
   ...sources: string[]
 ): { owner: string; repo: string; issueNumber: number } | null {
   for (const source of sources) {
@@ -618,6 +751,52 @@ function parseIssueReference(
     }
 
     // Note: Don't use generic #number pattern here to avoid confusion with PRs
+  }
+  return null;
+}
+
+export function parseCommitReference(
+  ...sources: string[]
+): { owner: string; repo: string; commitSha: string } | null {
+  for (const source of sources) {
+    const text = String(source || "").trim();
+    if (!text) continue;
+
+    const tagMatch = text.match(commitTagRegex);
+    if (tagMatch) {
+      const [owner, repo] = cleanRepoName(tagMatch[1]).split("/");
+      const commitSha = tagMatch[2];
+      if (owner && repo && commitSha) {
+        return { owner, repo, commitSha };
+      }
+    }
+
+    const urlMatch = text.match(commitUrlRegex);
+    if (urlMatch) {
+      return {
+        owner: urlMatch[1],
+        repo: cleanRepoName(urlMatch[2]),
+        commitSha: urlMatch[3],
+      };
+    }
+
+    const atMatch = text.match(/\b([\w.-]+)\/([\w.-]+)@([a-f0-9]{7,40})\b/i);
+    if (atMatch) {
+      return {
+        owner: atMatch[1],
+        repo: cleanRepoName(atMatch[2]),
+        commitSha: atMatch[3],
+      };
+    }
+
+    const splitMatch = text.match(/\b([\w.-]+)\/([\w.-]+)\b\s+([a-f0-9]{7,40})\b/i);
+    if (splitMatch) {
+      return {
+        owner: splitMatch[1],
+        repo: cleanRepoName(splitMatch[2]),
+        commitSha: splitMatch[3],
+      };
+    }
   }
   return null;
 }
@@ -795,6 +974,7 @@ async function handlePrCommand(
         authorName: pr.user?.login || "unknown",
         actionText: "Pull Request details",
         timestamp,
+        editInfo: "",
         labelsHtml,
         bodyHtml,
         comments: pr.comments || 0,
@@ -879,6 +1059,7 @@ async function handlePrSummaryCard(
       authorName: pr.user?.login || "unknown",
       actionText: "Pull Request",
       timestamp,
+      editInfo: "",
       labelsHtml: "",
       bodyHtml: summaryHtml,
       comments: pr.comments || 0,
@@ -896,6 +1077,102 @@ async function handlePrSummaryCard(
       target,
       "获取 PR 信息失败，请检查仓库和编号是否正确。"
     );
+  }
+}
+
+// Handle Issue full details command
+async function handleIssueCommand(
+  owner: string,
+  repoName: string,
+  issueNumber: number,
+  targetId: string,
+  messageType: string,
+  bot: OneBotClient
+) {
+  const target = { type: messageType, id: targetId };
+  try {
+    const { data: issue } = await getOctokit().issues.get({
+      owner,
+      repo: repoName,
+      issue_number: issueNumber,
+    });
+
+    // If GitHub issue has a pull_request object, it is actually a PR
+    if (issue.pull_request) {
+      await handlePrCommand(owner, repoName, issueNumber, targetId, messageType, bot);
+      return;
+    }
+
+    let badgeClass = "badge-issue-open";
+    let eventLabel = "Issue Opened";
+
+    if (issue.state === "closed") {
+      badgeClass =
+        issue.state_reason === "not_planned"
+          ? "badge-pr-closed"
+          : "badge-issue-closed";
+      eventLabel =
+        issue.state_reason === "not_planned"
+          ? "Issue Closed (Not Planned)"
+          : "Issue Closed";
+    }
+
+    let labelsHtml = "";
+    if (issue.labels && issue.labels.length > 0) {
+      const labelItems = issue.labels
+        .map((l: any) => {
+          const color = typeof l === "object" ? l.color : "";
+          const name = typeof l === "object" ? l.name : String(l);
+          const bg = color ? `#${color}` : "#30363d";
+          return `<span class="label" style="background: ${bg}33; color: #${color || "e6edf3"}; border-color: ${bg}55;">${escapeHtml(name)}</span>`;
+        })
+        .join("");
+      labelsHtml = `<div class="labels">${labelItems}</div>`;
+    }
+
+    const bodyHtml = markdownToHtml(issue.body || "", 50000);
+    const timestamp = new Date(issue.created_at).toLocaleString("zh-CN");
+
+    const image = await renderTemplate(
+      "issue",
+      {
+        badgeClass,
+        eventIcon: "",
+        eventLabel,
+        repoFullName: `${owner}/${repoName}`,
+        title: escapeHtml(issue.title || ""),
+        number: issue.number,
+        avatarUrl: getAvatarUrl(issue.user?.login, issue.user?.avatar_url),
+        authorName: issue.user?.login || "unknown",
+        actionText: "Issue details",
+        timestamp,
+        editInfo: "",
+        labelsHtml,
+        bodyHtml,
+        comments: issue.comments || 0,
+        reactions: issue.reactions?.total_count || 0,
+      },
+      { fullPage: true }
+    );
+
+    await bot.sendImageToTarget(
+      target,
+      image,
+      `[Issue] ${owner}/${repoName}#${issue.number}\n${issue.html_url}\n${issue.title}`
+    );
+  } catch (e: any) {
+    console.error(`[Message] Failed to fetch Issue for ${owner}/${repoName}#${issueNumber}:`, e.message);
+    if (e.status === 404) {
+      await bot.sendTextToTarget(
+        target,
+        `仓库 ${owner}/${repoName} 中未找到 #${issueNumber} 的 Issue 或 PR。`
+      );
+    } else {
+      await bot.sendTextToTarget(
+        target,
+        "获取 Issue 信息失败，请检查仓库和编号是否正确。"
+      );
+    }
   }
 }
 
@@ -948,6 +1225,7 @@ async function handleIssueSummaryCard(
       authorName: issue.user?.login || "unknown",
       actionText: "Issue",
       timestamp,
+      editInfo: "",
       labelsHtml: "",
       bodyHtml: summaryHtml,
       comments: issue.comments || 0,
@@ -1052,6 +1330,8 @@ async function handlePrDetailCommand(
       `;
     }
 
+    const labelsHtml = (pr.labels || []).map(label => `<span style="background: #${label.color}; color: #000; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-right: 4px;">${escapeHtml(label.name || "")}</span>`).join("");
+
     const prStats = `
       <div style="margin: 10px 0; padding: 10px; background: #161b22; border-radius: 6px; border: 1px solid #30363d;">
         <span style="color: #3fb950;">+${pr.additions} additions</span>
@@ -1078,6 +1358,7 @@ async function handlePrDetailCommand(
         authorName: pr.user?.login || "unknown",
         actionText: "代码变更详情",
         timestamp,
+        editInfo: "",
         labelsHtml: "",
         bodyHtml,
         comments: pr.comments || 0,
@@ -1096,6 +1377,70 @@ async function handlePrDetailCommand(
     await bot.sendTextToTarget(
       target,
       "获取 PR 代码变更失败，请检查仓库和编号是否正确。"
+    );
+  }
+}
+
+// Handle Commit summary card
+async function handleCommitSummaryCard(
+  owner: string,
+  repoName: string,
+  commitSha: string,
+  targetId: string,
+  messageType: string,
+  bot: OneBotClient
+) {
+  const target = { type: messageType, id: targetId };
+  try {
+    const { data: commit } = await getOctokit().repos.getCommit({
+      owner,
+      repo: repoName,
+      ref: commitSha,
+    });
+
+    const shortSha = commit.sha.substring(0, 7);
+    const commitMsg = commit.commit?.message || "";
+    const firstLine = commitMsg.split("\n")[0] || shortSha;
+    const authorLogin = commit.author?.login;
+    const authorName = authorLogin || commit.commit?.author?.name || "unknown";
+    const avatarUrl = getAvatarUrl(authorLogin, commit.author?.avatar_url);
+
+    const commitItem = `
+      <div class="commit-item">
+        <span class="commit-sha">${shortSha}</span>
+        <span class="commit-message">${escapeHtml(firstLine)}</span>
+        <span class="commit-author">${escapeHtml(authorName)}</span>
+      </div>
+    `;
+
+    const statsHtml = `
+      <div class="stats">
+        <span class="stat-add">+${commit.stats?.additions || 0}</span>
+        <span class="stat-del">-${commit.stats?.deletions || 0}</span>
+      </div>
+    `;
+
+    const image = await renderTemplate("push", {
+      repoFullName: `${owner}/${repoName}`,
+      pusherName: authorName,
+      avatarUrl,
+      commitCount: 1,
+      branch: shortSha,
+      commitsHtml: commitItem,
+      statsHtml,
+      compareText: `${commit.files?.length || 0} files changed`,
+    });
+
+    await bot.sendImageToTarget(
+      target,
+      image,
+      `[Commit] ${owner}/${repoName}@${shortSha}\n${commit.html_url}\n${firstLine}`
+    );
+  } catch (e: any) {
+    console.error(`[Message] Failed to fetch Commit for ${owner}/${repoName}@${commitSha}:`, e.message);
+    await bot.sendTextToTarget(
+      target,
+      "获取 Commit 信息失败，请检查仓库和 commit SHA 是否正确。"
     );
   }
 }

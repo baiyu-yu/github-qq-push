@@ -78,6 +78,40 @@ export async function closeRenderer(): Promise<void> {
 }
 
 /**
+ * Injects data into a raw template HTML string.
+ * Replaces {{key}} / {{{key}}} placeholders (case-insensitive).
+ * Any template placeholder without a corresponding key in data defaults to "".
+ * Content in user data (such as code snippets containing {{foo}}) is preserved.
+ */
+export function fillTemplate(html: string, data: Record<string, any>): string {
+  // 1. Identify all placeholders present in the raw template before data injection.
+  const templatePlaceholders = new Set<string>();
+  const matches = html.matchAll(/\{\{\{?\s*([a-zA-Z0-9_]+)\s*\}\}\}?/g);
+  for (const m of matches) {
+    templatePlaceholders.add(m[1]);
+  }
+
+  // 2. Build a lookup map of provided data (case-insensitive keys)
+  const dataLookup = new Map<string, any>();
+  for (const [k, v] of Object.entries(data)) {
+    dataLookup.set(k.toLowerCase(), v);
+  }
+
+  // 3. Replace all template placeholders with their corresponding data value or empty string.
+  // Use a function replacement so `$&`, `$'`, `$$` in user content
+  // are not interpreted as replacement patterns.
+  let rendered = html;
+  for (const placeholderKey of templatePlaceholders) {
+    const val = dataLookup.get(placeholderKey.toLowerCase());
+    const replacement = val !== undefined && val !== null ? String(val) : "";
+    const reg = new RegExp(`\\{\\{\\{?\\s*${placeholderKey}\\s*\\}\\}\\}?`, "gi");
+    rendered = rendered.replace(reg, () => replacement);
+  }
+
+  return rendered;
+}
+
+/**
  * Load a template, inject data, render to PNG, return as base64 string.
  */
 export async function renderTemplate(
@@ -107,18 +141,13 @@ export async function renderTemplate(
   }
   html = html.replace("/* %%COMMON_CSS%% */", css);
 
-  // Replace template placeholders: {{key}}
-  // Use a function replacement so `$&`, `$'`, `$$` in user content
-  // are not interpreted as replacement patterns.
-  for (const [key, value] of Object.entries(data)) {
-    const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, "g");
-    html = html.replace(placeholder, () => String(value ?? ""));
-  }
+  // Inject data into placeholders
+  html = fillTemplate(html, data);
 
-    const config = getConfig();
-    const renderCfg = config.render || { image_quality: 90, max_height: 8000, theme: "dark" };
-    const theme = renderCfg.theme || "dark";
-    html = html.replace("<body>", `<body class="${theme}-theme">`);
+  const config = getConfig();
+  const renderCfg = config.render || { image_quality: 90, max_height: 8000, theme: "dark" };
+  const theme = renderCfg.theme || "dark";
+  html = html.replace("<body>", `<body class="${theme}-theme">`);
 
     return await withRenderSlot(async () => {
       const page = await browser!.newPage();
