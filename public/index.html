@@ -285,6 +285,52 @@
       box-shadow: none;
     }
 
+    .protocol-selector {
+      display: inline-flex;
+      background: var(--input);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+    .protocol-opt {
+      padding: 9px 20px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+    .protocol-opt:hover {
+      color: var(--text);
+    }
+    .protocol-opt.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: white;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+    }
+    .protocol-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+
     .grid-2 {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -468,7 +514,7 @@
             <div class="stat-value" id="bot-identity">等待数据中...</div>
           </div>
           <div class="stat">
-            <div class="stat-label">OneBot 服务 (OneBot Status)</div>
+            <div class="stat-label">机器人服务 (Bot Status) <span class="protocol-badge" id="bot-proto-badge">OneBot</span></div>
             <div class="stat-value status-row">
               <span class="dot" id="dot"></span>
               <span id="service-status">加载中...</span>
@@ -569,8 +615,20 @@
       <div class="card">
         <h2>全局配置</h2>
         
-        <h3 style="margin-top:20px; color: var(--accent);">OneBot 机器人设置</h3>
-        <div class="form-grid">
+        <h3 style="margin-top:20px; color: var(--accent);">机器人协议与连接设置</h3>
+        <div style="margin-bottom: 8px;">
+          <label style="display:block; margin-bottom: 8px; font-weight: 600;">通信协议 (Protocol Adapter)</label>
+          <div class="protocol-selector" id="proto-selector">
+            <div class="protocol-opt active" id="proto-opt-onebot" onclick="switchProtocol('onebot')">
+              <span>OneBot v11 (WebSocket)</span>
+            </div>
+            <div class="protocol-opt" id="proto-opt-milky" onclick="switchProtocol('milky')">
+              <span>Milky (HTTP + WebSocket)</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="section-onebot" class="form-grid">
           <div class="form-group">
             <label>OneBot WebSocket 地址 (WS URL)</label>
             <input id="cfg-ob-ws" class="form-control" placeholder="ws://127.0.0.1:3001">
@@ -586,6 +644,26 @@
           <div class="form-group" style="grid-column: 1 / -1;">
             <label>Master QQ 列表 (每行一个 QQ 号，具有最高管理权限，可跨越群主/管理限制)</label>
             <textarea id="cfg-ob-masters" class="form-control" placeholder="12345678&#10;87654321" rows="2"></textarea>
+          </div>
+        </div>
+
+        <div id="section-milky" class="form-grid" style="display:none;">
+          <div class="form-group">
+            <label>Milky 端点地址 (Endpoint URL)</label>
+            <input id="cfg-milky-endpoint" class="form-control" placeholder="http://127.0.0.1:3000">
+            <div class="muted" style="font-size: 12px; margin-top: 4px;">Milky 服务地址，将自动调用 HTTP API 与连接 /event 事件流</div>
+          </div>
+          <div class="form-group">
+            <label>Milky 访问令牌 (Access Token)</label>
+            <input id="cfg-milky-token" type="password" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>指令前缀 (Command Prefix)</label>
+            <input id="cfg-milky-prefix" class="form-control" placeholder="/">
+          </div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Master QQ 列表 (每行一个 QQ 号，具有最高管理权限，可跨越群主/管理限制)</label>
+            <textarea id="cfg-milky-masters" class="form-control" placeholder="12345678&#10;87654321" rows="2"></textarea>
           </div>
         </div>
 
@@ -846,6 +924,20 @@
       }, 3500);
     }
 
+    let currentProtocol = "onebot";
+    function switchProtocol(proto) {
+      currentProtocol = proto;
+      const isMilky = proto === "milky";
+      const optOb = document.getElementById("proto-opt-onebot");
+      const optMilky = document.getElementById("proto-opt-milky");
+      if (optOb) optOb.classList.toggle("active", !isMilky);
+      if (optMilky) optMilky.classList.toggle("active", isMilky);
+      const secOb = document.getElementById("section-onebot");
+      const secMilky = document.getElementById("section-milky");
+      if (secOb) secOb.style.display = isMilky ? "none" : "grid";
+      if (secMilky) secMilky.style.display = isMilky ? "grid" : "none";
+    }
+
     async function loadData() {
       try {
         const [configRes, statusRes] = await Promise.all([
@@ -860,10 +952,15 @@
         renderTable();
 
         if (!window.initialConfigLoaded) {
-          document.getElementById("cfg-ob-ws").value = currentConfig.onebot.ws_url || "";
-          document.getElementById("cfg-ob-token").value = currentConfig.onebot.access_token || "";
-          document.getElementById("cfg-ob-prefix").value = currentConfig.onebot.command_prefix || "/";
-          document.getElementById("cfg-ob-masters").value = (currentConfig.onebot.masters || []).join("\n");
+          switchProtocol(currentConfig.protocol || "onebot");
+          document.getElementById("cfg-ob-ws").value = currentConfig.onebot?.ws_url || "";
+          document.getElementById("cfg-ob-token").value = currentConfig.onebot?.access_token || "";
+          document.getElementById("cfg-ob-prefix").value = currentConfig.onebot?.command_prefix || "/";
+          document.getElementById("cfg-ob-masters").value = (currentConfig.onebot?.masters || []).join("\n");
+          document.getElementById("cfg-milky-endpoint").value = currentConfig.milky?.endpoint || "http://127.0.0.1:3000";
+          document.getElementById("cfg-milky-token").value = currentConfig.milky?.access_token || "";
+          document.getElementById("cfg-milky-prefix").value = currentConfig.milky?.command_prefix || "/";
+          document.getElementById("cfg-milky-masters").value = (currentConfig.milky?.masters || []).join("\n");
           document.getElementById("cfg-webui-user").value = currentConfig.webui?.username || "admin";
           document.getElementById("cfg-webui-pass").value = currentConfig.webui?.password || "";
           document.getElementById("cfg-gh-port").value = currentConfig.github.webhook_port || 7890;
@@ -904,7 +1001,13 @@
         identity.textContent = "等待数据中...";
       }
 
-      const st = statusData.onebotState;
+      const proto = statusData.protocol || "onebot";
+      const protoBadge = document.getElementById("bot-proto-badge");
+      if (protoBadge) {
+        protoBadge.textContent = proto === "milky" ? "Milky" : "OneBot v11";
+      }
+
+      const st = statusData.botState || statusData.onebotState;
       const dot = document.getElementById("dot");
       const text = document.getElementById("service-status");
       const reconnect = document.getElementById("btn-reconnect");
@@ -1053,11 +1156,20 @@
 
     function saveGlobalSettings() {
       if (!currentConfig) return;
+      currentConfig.protocol = currentProtocol;
+      currentConfig.onebot = currentConfig.onebot || {};
       currentConfig.onebot.ws_url = document.getElementById("cfg-ob-ws").value;
       currentConfig.onebot.access_token = document.getElementById("cfg-ob-token").value;
       currentConfig.onebot.command_prefix = document.getElementById("cfg-ob-prefix").value || "/";
       const rawMasters = document.getElementById("cfg-ob-masters").value;
       currentConfig.onebot.masters = rawMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
+
+      currentConfig.milky = currentConfig.milky || {};
+      currentConfig.milky.endpoint = document.getElementById("cfg-milky-endpoint").value.trim() || "http://127.0.0.1:3000";
+      currentConfig.milky.access_token = document.getElementById("cfg-milky-token").value;
+      currentConfig.milky.command_prefix = document.getElementById("cfg-milky-prefix").value || "/";
+      const rawMilkyMasters = document.getElementById("cfg-milky-masters").value;
+      currentConfig.milky.masters = rawMilkyMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
       currentConfig.webui = currentConfig.webui || {};
       currentConfig.webui.username = document.getElementById("cfg-webui-user").value.trim() || "admin";
       currentConfig.webui.password = document.getElementById("cfg-webui-pass").value;

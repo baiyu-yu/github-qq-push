@@ -1,6 +1,7 @@
 import WebSocket from "ws";
 import { OneBotConfig } from "../config";
 import { sanitizeTextForCq } from "../utils";
+import { IBotClient, BotInfo, BotConnectionState } from "../bot/types";
 
 interface PendingRequest {
   resolve: (data: any) => void;
@@ -8,7 +9,8 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout>;
 }
 
-export class OneBotClient {
+export class OneBotClient implements IBotClient {
+  public readonly protocol = "onebot" as const;
   private ws: WebSocket | null = null;
   private config: OneBotConfig;
   private requestId = 0;
@@ -99,7 +101,7 @@ export class OneBotClient {
     return this.botInfo;
   }
 
-  private storeMessageMetadata(messageId: string, metadata: string) {
+  public storeMessageMetadata(messageId: string, metadata: string) {
     this.messageMetadata.set(messageId, metadata);
     
     if (this.messageMetadata.size > this.MAX_METADATA_SIZE) {

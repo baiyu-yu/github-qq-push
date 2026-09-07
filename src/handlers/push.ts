@@ -1,12 +1,12 @@
 import { renderTemplate } from "../renderer";
 import { getAvatarUrl } from "../github/api";
 import { findSubscribers } from "../config";
-import { OneBotClient } from "../onebot/client";
+import { IBotClient } from "../bot/types";
 import { escapeHtml } from "../utils";
 
 export async function handlePush(
   payload: any,
-  bot: OneBotClient
+  bot: IBotClient
 ): Promise<void> {
   const repo = payload.repository;
   const sender = payload.sender;

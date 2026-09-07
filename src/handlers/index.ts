@@ -1,4 +1,4 @@
-import { OneBotClient } from "../onebot/client";
+import { IBotClient } from "../bot/types";
 import { handleIssues } from "./issues";
 import { handlePullRequest } from "./pull_request";
 import { handlePush } from "./push";
@@ -19,7 +19,7 @@ import {
 export async function routeEvent(
   event: string,
   payload: any,
-  bot: OneBotClient
+  bot: IBotClient
 ): Promise<void> {
   const repoName = payload.repository?.full_name || "unknown";
 

@@ -1,4 +1,4 @@
-import { OneBotClient } from "../onebot/client";
+import { IBotClient } from "../bot/types";
 import { getRepo, getAvatarUrl, getOctokit } from "../github/api";
 import { renderTemplate, markdownToHtml } from "../renderer";
 import { setGroupToggle } from "../state";
@@ -110,14 +110,28 @@ function stripCqCodes(raw: string): string {
   return raw.replace(/\[CQ:[^\]]*\]/g, "").trim();
 }
 
+function getBotSettings(bot: IBotClient) {
+  const cfg = getConfig();
+  if (bot.protocol === "milky" && cfg.milky) {
+    return {
+      command_prefix: cfg.milky.command_prefix || "/",
+      masters: cfg.milky.masters || [],
+    };
+  }
+  return {
+    command_prefix: cfg.onebot.command_prefix || "/",
+    masters: cfg.onebot.masters || [],
+  };
+}
+
 export async function handleMessage(
   payload: any,
-  bot: OneBotClient
+  bot: IBotClient
 ): Promise<void> {
   const { messageType, targetId } = getTarget(payload);
   const rawText = String(payload.raw_message || "").trim();
   const text = stripCqCodes(rawText);
-  const prefix = getConfig().onebot.command_prefix || "/";
+  const { command_prefix: prefix, masters } = getBotSettings(bot);
 
   // Truncated log to avoid dumping full chat content into logs/WebUI
   const preview = rawText.length > 120 ? rawText.slice(0, 120) + "..." : rawText;
@@ -129,7 +143,6 @@ export async function handleMessage(
   }
 
   const senderId = String(payload.user_id || payload.sender?.user_id || "");
-  const masters = getConfig().onebot.masters || [];
   const isMaster = masters.includes(senderId);
   const senderRole = messageType === "group" ? payload.sender?.role : undefined;
   const isAdmin = isMaster || senderRole === "owner" || senderRole === "admin";
@@ -591,7 +604,7 @@ function canAutoParseRepoCard(messageType: string, targetId: string): boolean {
 
 async function getReplyContextText(
   payload: any,
-  bot: OneBotClient
+  bot: IBotClient
 ): Promise<string> {
   const replyId = extractReplyMessageId(payload);
   if (!replyId) {
@@ -802,7 +815,7 @@ export function parseCommitReference(
 }
 
 async function sendText(
-  bot: OneBotClient,
+  bot: IBotClient,
   messageType: string,
   targetId: string,
   text: string
@@ -819,7 +832,7 @@ async function handleRepoCard(
   repoName: string,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   try {
     const repo = await getRepo(owner, repoName);
@@ -868,7 +881,7 @@ async function handleReadmeCommand(
   repoName: string,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   const target = { type: messageType, id: targetId };
   try {
@@ -914,7 +927,7 @@ async function handlePrCommand(
   prNumber: number,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   const target = { type: messageType, id: targetId };
   try {
@@ -1004,7 +1017,7 @@ async function handlePrSummaryCard(
   prNumber: number,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   const target = { type: messageType, id: targetId };
   try {
@@ -1087,7 +1100,7 @@ async function handleIssueCommand(
   issueNumber: number,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   const target = { type: messageType, id: targetId };
   try {
@@ -1183,7 +1196,7 @@ async function handleIssueSummaryCard(
   issueNumber: number,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   const target = { type: messageType, id: targetId };
   try {
@@ -1253,7 +1266,7 @@ async function handlePrDetailCommand(
   prNumber: number,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   const target = { type: messageType, id: targetId };
   try {
@@ -1388,7 +1401,7 @@ async function handleCommitSummaryCard(
   commitSha: string,
   targetId: string,
   messageType: string,
-  bot: OneBotClient
+  bot: IBotClient
 ) {
   const target = { type: messageType, id: targetId };
   try {

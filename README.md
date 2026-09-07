@@ -1,13 +1,14 @@
 # GitHub QQ 推送服务
 
-这是一个轻量且优雅的 Node.js 服务，旨在将 GitHub Webhooks 与 OneBot (v11) 无缝连接。它能将实时的 GitHub 仓库事件安全地推送至您的 QQ 群或私聊，并自动生成深色模式的精美图片卡片。
+这是一个轻量且优雅的 Node.js 服务，旨在将 GitHub Webhooks 与 QQ 机器人协议（支持 **OneBot v11** 与 **[Milky](https://milky.ntqqrev.org/) v1.3+**）无缝连接。它能将实时的 GitHub 仓库事件安全地推送至您的 QQ 群或私聊，并自动生成深色模式的精美图片卡片。
 
 **代码来源: Vibe Coding** (由 AI 智能代理自主构建)。
 
 ## 核心特性
 
+- **多协议适配 (OneBot v11 & Milky)**: 原生支持经典 OneBot v11 (正向 WebSocket，如 NapCat、LLOneBot、Lagrange) 以及新一代 [Milky 协议](https://milky.ntqqrev.org/) (HTTP API + WebSocket 事件推送，如 Milky.Net、Acidify)，支持在 Web 控制面板中自由切换与热重载。
 - **精美图片渲染**: 使用 Puppeteer 将 GitHub 事件（提交、Issue、PR、代码审查、版本发布、Star、Fork、评论等）渲染为精致的深色模式图片卡片。
-- **Web 控制面板**: 内置响应式 Web UI（默认端口 `7890`），支持在线配置 OneBot 连接、多 GitHub Token 轮询池、查看实时日志以及可视化管理订阅关系。
+- **Web 控制面板**: 内置响应式 Web UI（默认端口 `7890`），支持在线配置机器人协议及连接、多 GitHub Token 轮询池、查看实时日志以及可视化管理订阅关系。
 - **无需手动编辑配置**: 所有的推送目标和配置更改均可通过网页端动态完成，支持热重连。
 - **Webhook + 轮询双引擎**: 支持 GitHub Webhook 主动推送与 API 自动轮询双模式，内置多重指纹去重（Deduplication），保证消息不漏不重。
 - **自动解析各类链接**: 在聊天中自动识别 GitHub 仓库、Pull Request、Issue、Commit 链接并生成概要卡片。
@@ -21,7 +22,7 @@
 
 ### 基础与管理指令
 - `/help` 或 `/github help`: 显示完整帮助菜单。
-- `/status` 或 `/github status`: 查看服务运行时间 (Uptime)、OneBot 连接状态、GitHub Token 配置情况及订阅统计。
+- `/status` 或 `/github status`: 查看服务运行时间 (Uptime)、机器人连接状态（OneBot / Milky 协议与在线详情）、GitHub Token 配置情况及订阅统计。
 - `/github sub <owner/repo> [事件...]`: 为当前群/私聊订阅指定仓库。事件可选（如 `push`, `issues`, `pull_request`），默认为全量订阅（仅限群主/管理员/Master）。
 - `/github unsub <owner/repo> [事件...]`: 取消订阅全部或指定事件（仅限群主/管理员/Master）。
 - `/github list`: 查看当前群/私聊已订阅的所有仓库及事件列表。
@@ -68,6 +69,62 @@
 | `fork` | 仓库被 Fork |
 | `edited` | Issue / PR / 评论的编辑修改历史通知 |
 
+## 机器人协议接入指引
+
+本项目支持 **OneBot v11** 与 **Milky (v1.3+)** 两种通信协议，可在 Web 控制面板中一键热切换，无需重启服务：
+
+### 1. OneBot v11 协议
+- **适用框架**: NapCat、LLOneBot、Lagrange、Trss-Yunzai 等兼容 OneBot v11 的客户端。
+- **连接方式**: 正向 WebSocket 连接。
+- **配置参数**:
+  - `ws_url`: 机器人正向 WebSocket 服务地址（如 `ws://127.0.0.1:3001`）。
+  - `access_token`: 鉴权 Token（若机器人端未配置可留空）。
+
+### 2. Milky 协议 (v1.3+)
+- **适用框架**: [Milky.Net](https://github.com/ProjectMilky/Milky.Net)、Acidify 等遵循 [Milky 官方标准](https://milky.ntqqrev.org/) 的现代 QQ 机器人框架。
+- **连接方式**: HTTP API 调用 + WebSocket (`/event`) 事件推送流。
+- **配置参数**:
+  - `endpoint`: Milky 服务的根地址（如 `http://127.0.0.1:3000`）。服务将自动派生 HTTP API 请求路径与 `/event` WebSocket 事件监听。
+  - `access_token`: 访问令牌（将以 `Authorization: Bearer <token>` 及 WebSocket 查询参数自动注入鉴权）。
+- **图片传输**: 深度集成 Milky 的 `uri: "base64://..."` 规范，Puppeteer 渲染后的图片无需外部图床即可直推群聊与私聊。
+
+---
+
+## 配置文件说明 (`config.json`)
+
+除了在 WebUI 可视化修改外，您也可以直接编辑项目根目录的 `config.json`：
+
+| 配置项 | 类型 | 说明 | 默认值 / 示例 |
+| :--- | :--- | :--- | :--- |
+| `protocol` | string | 机器人通信协议，可选 `"onebot"` 或 `"milky"` | `"onebot"` |
+| **`onebot`** | object | OneBot v11 协议配置 | |
+| `onebot.ws_url` | string | OneBot 正向 WebSocket 连接地址 | `"ws://127.0.0.1:3001"` |
+| `onebot.access_token` | string | OneBot Access Token（无则留空） | `""` |
+| `onebot.command_prefix` | string | 聊天指令前缀 | `"/"` |
+| `onebot.masters` | string[] | 管理员 QQ 号列表（不受群权限限制） | `["123456789"]` |
+| **`milky`** | object | Milky 协议配置 | |
+| `milky.endpoint` | string | Milky 服务根地址（HTTP URL） | `"http://127.0.0.1:3000"` |
+| `milky.access_token` | string | Milky Bearer 鉴权 Token（无则留空） | `""` |
+| `milky.command_prefix` | string | 聊天指令前缀 | `"/"` |
+| `milky.masters` | string[] | 管理员 QQ 号列表 | `["123456789"]` |
+| **`github`** | object | GitHub 交互与推送配置 | |
+| `github.webhook_port` | number | Webhook 与 WebUI 监听端口 | `7890` |
+| `github.webhook_secret` | string | GitHub Webhook Secret 签名校验密钥 | `""` |
+| `github.access_token` | string | GitHub Token，支持英文逗号分隔多个 Token 实现轮询池负载均衡 | `""` |
+| `github.polling_enabled` | boolean | 是否开启 GitHub API 自动轮询降级引擎 | `true` |
+| `github.polling_interval`| number | 轮询周期（秒） | `60` |
+| `github.link_card_group_mode` | string | 群内识别 GitHub 链接卡片策略：`"all"` (全部启用)、`"whitelist"` (仅白名单)、`"disabled"` (禁用) | `"all"` |
+| `github.link_card_enabled_groups` | string[] | 当策略为白名单时生效的群号列表 | `[]` |
+| **`webui`** | object | Web 控制面板鉴权 | |
+| `webui.username` | string | WebUI 登录用户名 | `"admin"` |
+| `webui.password` | string | WebUI 登录密码（生产环境强烈建议设置） | `""` |
+| **`render`** | object | 渲染引擎参数 | |
+| `render.theme` | string | 卡片主题，支持 `"dark"` | `"dark"` |
+| `render.concurrency` | number | 浏览器并发渲染页面数 | `2` |
+| `render.max_screenshot_height` | number | 长图最大截取像素高度 | `30000` |
+
+---
+
 ## GitHub Webhook 配置
 
 如需使用 Webhook 实时推送功能，请在您的 GitHub 仓库中进行配置：
@@ -85,8 +142,10 @@
 ## 环境要求
 
 - [Node.js](https://nodejs.org/) v18+
-- 运行中的兼容 OneBot v11 的客户端（如 NapCat、LLOneBot 等），并开启正向 WebSocket。
-- 一个公网 IP 或内网穿透地址（默认 Webhook 端口 `7890`）。
+- 运行中的 QQ 机器人服务（二选一）：
+  - **OneBot v11**: 如 NapCat、LLOneBot、Lagrange 等，开启正向 WebSocket 服务。
+  - **Milky (v1.3+)**: 如 Milky.Net、Acidify 等，开启 HTTP API 与 `/event` WebSocket 事件推送服务。
+- 一个公网 IP 或内网穿透地址（默认 Webhook / WebUI 端口 `7890`）。
 
 ## 安装与部署
 
@@ -105,7 +164,7 @@
    ```
 
 3. **准备配置**:
-   复制 `config.example.json` 为 `config.json` 并填写基础配置。
+   复制 `config.example.json` 为 `config.json` 并填写基础配置。若未显式指定 `protocol`，默认采用 `"onebot"`。
 
 4. **启动服务**:
    ```bash
@@ -113,7 +172,7 @@
    ```
 
 5. **Web 控制台配置**:
-   在浏览器访问 `http://localhost:7890`。在“全局配置”中输入 GitHub Token、OneBot 连接地址等。
+   在浏览器访问 `http://localhost:7890`。在“全局配置”中可通过顶部的胶囊单选组件一键切换通信协议（OneBot v11 / Milky），并配置对应的服务连接、GitHub Token 轮询池与推送规则（保存后即刻热重载，无需重启服务）。
 
 > [!IMPORTANT]
 > **请务必在 WebUI 中设置管理密码**（全局配置 → WebUI 管理认证）。WebUI 使用 HTTP Basic Auth 进行权限拦截（默认用户名为 `admin`），防止公网环境下凭据泄露。

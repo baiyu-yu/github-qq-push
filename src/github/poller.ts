@@ -2,18 +2,22 @@ import { getOctokit, getPullRequest } from "./api";
 import { getConfig } from "../config";
 import { getLastEventId, setLastEventId } from "../state";
 import { routeEvent } from "../handlers";
-import { OneBotClient } from "../onebot/client";
+import { IBotClient } from "../bot/types";
 
 /**
  * GitHub Event Poller - polls the GitHub Events API for subscribed repos.
  */
 export class GitHubEventPoller {
-  private bot: OneBotClient;
+  private bot: IBotClient;
   private timer: ReturnType<typeof setInterval> | null = null;
   private isPolling = false;
   private hasInitialized = false;
 
-  constructor(bot: OneBotClient) {
+  constructor(bot: IBotClient) {
+    this.bot = bot;
+  }
+
+  public updateBot(bot: IBotClient) {
     this.bot = bot;
   }
 

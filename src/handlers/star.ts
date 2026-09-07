@@ -1,12 +1,12 @@
 import { renderTemplate } from "../renderer";
 import { getAvatarUrl } from "../github/api";
 import { findSubscribers } from "../config";
-import { OneBotClient } from "../onebot/client";
+import { IBotClient } from "../bot/types";
 import { escapeHtml } from "../utils";
 
 export async function handleStar(
   payload: any,
-  bot: OneBotClient
+  bot: IBotClient
 ): Promise<void> {
   const action = payload.action;
   // Webhook "watch" events send action "started"; the Events API (polling)

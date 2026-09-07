@@ -3,7 +3,8 @@ import * as path from "path";
 import * as crypto from "crypto";
 import { loadConfig, getConfig } from "./config";
 import { initState } from "./state";
-import { OneBotClient } from "./onebot/client";
+import { IBotClient } from "./bot/types";
+import { createBotClient } from "./bot/factory";
 import { GitHubWebhookServer } from "./github/webhook";
 import { initGitHubApi } from "./github/api";
 import { GitHubEventPoller } from "./github/poller";
@@ -81,8 +82,8 @@ async function main() {
   console.log("[Main] Initializing renderer...");
   await initRenderer();
 
-  // 4. Create and connect OneBot client
-  const bot = new OneBotClient(config.onebot);
+  // 4. Create and connect Bot client (OneBot or Milky)
+  let bot: IBotClient = createBotClient(config);
   bot.onMessageCallback = async (msg) => {
     await handleMessage(msg, bot);
   };
@@ -105,7 +106,16 @@ async function main() {
   // 6. Start event poller if enabled
   const poller = new GitHubEventPoller(bot);
 
-  app.use(getWebUIRouter({ bot, poller, webhookServer }));
+  app.use(
+    getWebUIRouter({
+      getBot: () => bot,
+      setBot: (newBot) => {
+        bot = newBot;
+      },
+      poller,
+      webhookServer,
+    })
+  );
   app.use(express.static(path.resolve(process.cwd(), "public")));
 
   webhookServer.start();
@@ -122,7 +132,14 @@ async function main() {
   console.log(
     `[Main] WebUI Control Panel: http://localhost:${config.github.webhook_port}/`
   );
-  console.log(`[Main] OneBot WS: ${config.onebot.ws_url}`);
+  const proto = config.protocol || "onebot";
+  if (proto === "milky") {
+    console.log(
+      `[Main] Protocol: Milky (${config.milky?.endpoint || "http://127.0.0.1:3000"})`
+    );
+  } else {
+    console.log(`[Main] Protocol: OneBot WS (${config.onebot.ws_url})`);
+  }
   console.log(
     `[Main] Subscriptions: ${config.subscriptions.length} repo(s) configured`
   );

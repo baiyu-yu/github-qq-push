@@ -1,12 +1,12 @@
 import { renderTemplate, markdownToHtml } from "../renderer";
 import { getAvatarUrl } from "../github/api";
 import { findSubscribers } from "../config";
-import { OneBotClient } from "../onebot/client";
+import { IBotClient } from "../bot/types";
 import { escapeHtml } from "../utils";
 
 export async function handlePullRequest(
   payload: any,
-  bot: OneBotClient
+  bot: IBotClient
 ): Promise<void> {
   const action = payload.action;
   if (!["opened", "closed", "reopened", "edited"].includes(action)) return;

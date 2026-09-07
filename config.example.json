@@ -1,6 +1,13 @@
 {
+  "protocol": "onebot",
   "onebot": {
     "ws_url": "ws://127.0.0.1:3001",
+    "access_token": "",
+    "command_prefix": "/",
+    "masters": ["123456789"]
+  },
+  "milky": {
+    "endpoint": "http://127.0.0.1:3000",
     "access_token": "",
     "command_prefix": "/",
     "masters": ["123456789"]

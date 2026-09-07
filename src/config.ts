@@ -9,6 +9,13 @@ export interface OneBotConfig {
   masters?: string[]; // Master QQ list
 }
 
+export interface MilkyConfig {
+  endpoint: string; // e.g. "http://127.0.0.1:3000"
+  access_token: string;
+  command_prefix: string; // e.g. "/" or "!"
+  masters?: string[]; // Master QQ list
+}
+
 export interface GitHubConfig {
   webhook_port: number;
   webhook_secret?: string;
@@ -52,7 +59,9 @@ export interface WebUIConfig {
 }
 
 export interface AppConfig {
+  protocol?: "onebot" | "milky";
   onebot: OneBotConfig;
+  milky?: MilkyConfig;
   github: GitHubConfig;
   render?: RenderConfig;
   subscriptions: Subscription[];
@@ -72,6 +81,29 @@ export function loadConfig(): AppConfig {
   const raw = fs.readFileSync(configPath, "utf-8");
   config = JSON.parse(raw) as AppConfig;
   // Fill in defaults if missing
+  if (!config.protocol) {
+    config.protocol = "onebot";
+  }
+  if (!config.milky) {
+    config.milky = {
+      endpoint: "http://127.0.0.1:3000",
+      access_token: "",
+      command_prefix: "/",
+      masters: [],
+    };
+  }
+  if (!config.milky.endpoint) {
+    config.milky.endpoint = "http://127.0.0.1:3000";
+  }
+  if (config.milky.access_token === undefined) {
+    config.milky.access_token = "";
+  }
+  if (!config.milky.command_prefix) {
+    config.milky.command_prefix = "/";
+  }
+  if (!config.milky.masters) {
+    config.milky.masters = [];
+  }
   if (!config.onebot) {
     config.onebot = {
       ws_url: "ws://127.0.0.1:3001",
