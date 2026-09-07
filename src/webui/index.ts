@@ -1,4 +1,5 @@
 import { Router } from "express";
+import * as crypto from "crypto";
 import { getConfig } from "../config";
 import { getState, saveConfig } from "../state";
 import { IBotClient } from "../bot/types";
@@ -9,6 +10,16 @@ import { serviceStartTime } from "../utils";
 import { initGitHubApi } from "../github/api";
 import { GitHubEventPoller } from "../github/poller";
 import { GitHubWebhookServer } from "../github/webhook";
+
+function safeEqualStrings(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export interface WebUIDeps {
   bot?: IBotClient;
@@ -30,6 +41,60 @@ export function getWebUIRouter(deps: WebUIDeps) {
       localBot = b;
     }
   };
+
+  // Auth status endpoint
+  router.get("/api/auth/status", (req, res) => {
+    const cfg = getConfig().webui || { username: "admin", password: "" };
+    const authRequired = Boolean(cfg.password);
+    let authenticated = !authRequired;
+
+    if (authRequired) {
+      const header = req.headers.authorization || "";
+      const [scheme, cred] = header.split(" ");
+      if (scheme === "Basic" && cred) {
+        const decoded = Buffer.from(cred, "base64").toString("utf8");
+        const idx = decoded.indexOf(":");
+        const user = idx >= 0 ? decoded.slice(0, idx) : "";
+        const pass = idx >= 0 ? decoded.slice(idx + 1) : "";
+        if (user === (cfg.username || "admin") && safeEqualStrings(pass, cfg.password || "")) {
+          authenticated = true;
+        }
+      }
+    }
+
+    res.json({
+      authRequired,
+      authenticated,
+      username: authenticated ? (cfg.username || "admin") : undefined,
+    });
+  });
+
+  // Login handler
+  router.post("/api/auth/login", (req, res) => {
+    const cfg = getConfig().webui || { username: "admin", password: "" };
+    const expectedUser = cfg.username || "admin";
+    const expectedPass = cfg.password || "";
+    const { username, password } = req.body || {};
+
+    if (!expectedPass || (username === expectedUser && safeEqualStrings(password || "", expectedPass))) {
+      const token = Buffer.from(`${expectedUser}:${expectedPass}`).toString("base64");
+      res.json({
+        success: true,
+        token,
+        username: expectedUser,
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        error: "用户名或密码错误",
+      });
+    }
+  });
+
+  // Logout handler
+  router.post("/api/auth/logout", (req, res) => {
+    res.json({ success: true });
+  });
 
   // Get whole config
   router.get("/api/config", (req, res) => {

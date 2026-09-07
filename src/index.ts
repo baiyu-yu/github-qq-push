@@ -34,6 +34,21 @@ function safeEqualStrings(a: string, b: string): boolean {
 function requireWebUIAuth(): express.RequestHandler {
   let warned = false;
   return (req, res, next) => {
+    // Exempt static files, health check, webhooks, and auth check/login endpoints
+    const path = req.path;
+    if (
+      path === "/" ||
+      path === "/index.html" ||
+      path.startsWith("/icon.") ||
+      path === "/health" ||
+      path === "/webhook" ||
+      path.startsWith("/qqbot/") ||
+      path === "/api/auth/status" ||
+      path === "/api/auth/login"
+    ) {
+      return next();
+    }
+
     const cfg = getConfig().webui || { username: "admin", password: "" };
     const username = cfg.username || "admin";
     const password = cfg.password || "";
@@ -61,8 +76,8 @@ function requireWebUIAuth(): express.RequestHandler {
 
     if (ok) return next();
 
-    res.setHeader("WWW-Authenticate", 'Basic realm="GitHub QQ Push"');
-    res.status(401).send("Unauthorized");
+    // Return JSON 401 without WWW-Authenticate header to prevent browser native dialog
+    res.status(401).json({ success: false, error: "Unauthorized", authRequired: true });
   };
 }
 

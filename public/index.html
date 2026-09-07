@@ -2,851 +2,1802 @@
 <html lang="zh-CN" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GitHub QQ 推送控制台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>GitHub QQ 推送管理控制台</title>
   <link rel="icon" href="/icon.png">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
+    /* ==========================================================================
+       GitHub-Inspired Monochrome Design System
+       ========================================================================== */
     :root[data-theme="dark"] {
-      --bg: #0b1220;
-      --bg-soft: #111a2b;
-      --card: rgba(16, 24, 40, 0.65);
-      --card-border: rgba(148, 163, 184, 0.15);
-      --card-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
-      --text: #e5edf7;
-      --muted: #9fb0c4;
-      --accent: #3b82f6;
-      --accent-2: #8b5cf6;
-      --accent-hover: #60a5fa;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --input: rgba(15, 23, 42, 0.7);
-      --hover: rgba(59, 130, 246, 0.15);
+      color-scheme: dark;
+      --bg: #0d1117;
+      --bg-subtle: #161b22;
+      --card: #161b22;
+      --card-header: #21262d;
+      --card-border: #30363d;
+      --card-border-hover: #8b949e;
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --text-dim: #6e7681;
+      --primary: #f0f6fc;
+      --primary-bg: #21262d;
+      --accent: #58a6ff;
+      --accent-subtle: rgba(56, 139, 253, 0.12);
+      --success: #3fb950;
+      --success-subtle: rgba(63, 185, 80, 0.15);
+      --warning: #d29922;
+      --warning-subtle: rgba(210, 153, 34, 0.15);
+      --danger: #f85149;
+      --danger-subtle: rgba(248, 81, 73, 0.15);
+      --input: #0d1117;
+      --input-border: #30363d;
+      --input-focus: #58a6ff;
+      --hover: #21262d;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
+      --term-bg: #05070a;
     }
 
     :root[data-theme="light"] {
-      --bg: #f4f7fb;
-      --bg-soft: #ffffff;
-      --card: rgba(255, 255, 255, 0.75);
-      --card-border: rgba(15, 23, 42, 0.08);
-      --card-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
-      --text: #1e293b;
-      --muted: #64748b;
-      --accent: #3b82f6;
-      --accent-2: #6366f1;
-      --accent-hover: #2563eb;
-      --success: #059669;
-      --warning: #d97706;
-      --danger: #dc2626;
-      --input: rgba(255, 255, 255, 0.9);
-      --hover: rgba(59, 130, 246, 0.08);
+      color-scheme: light;
+      --bg: #f6f8fa;
+      --bg-subtle: #ffffff;
+      --card: #ffffff;
+      --card-header: #f6f8fa;
+      --card-border: #d0d7de;
+      --card-border-hover: #656d76;
+      --text: #1f2328;
+      --text-muted: #656d76;
+      --text-dim: #8c959f;
+      --primary: #1f2328;
+      --primary-bg: #f6f8fa;
+      --accent: #0969da;
+      --accent-subtle: rgba(9, 105, 218, 0.08);
+      --success: #1a7f37;
+      --success-subtle: rgba(26, 127, 55, 0.12);
+      --warning: #9a6700;
+      --warning-subtle: rgba(154, 103, 0, 0.12);
+      --danger: #cf222e;
+      --danger-subtle: rgba(207, 34, 46, 0.12);
+      --input: #ffffff;
+      --input-border: #d0d7de;
+      --input-focus: #0969da;
+      --hover: #f3f4f6;
+      --shadow-sm: 0 1px 2px rgba(31, 35, 40, 0.04);
+      --shadow-md: 0 3px 6px rgba(31, 35, 40, 0.08);
+      --shadow-lg: 0 8px 24px rgba(31, 35, 40, 0.12);
+      --term-bg: #0d1117;
     }
 
-    * { box-sizing: border-box; }
-    body {
+    * {
+      box-sizing: border-box;
       margin: 0;
-      font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
       color: var(--text);
-      background: var(--bg);
+      background-color: var(--bg);
       min-height: 100vh;
-      padding: 32px 24px;
-      position: relative;
+      padding: 16px 16px 80px;
       overflow-x: hidden;
-      transition: background-color 0.4s ease, color 0.4s ease;
+      line-height: 1.5;
+      font-size: 14px;
+      transition: background-color 0.15s ease, color 0.15s ease;
     }
 
-    body::before {
-      content: "";
-      position: absolute;
-      top: -10%;
-      left: -10%;
-      width: 50%;
-      height: 60%;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 60%);
-      pointer-events: none;
-      z-index: -1;
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
     }
 
-    body::after {
-      content: "";
-      position: absolute;
-      bottom: -10%;
-      right: -10%;
-      width: 50%;
-      height: 60%;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 60%);
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .container { max-width: 1200px; margin: 0 auto; }
-    
+    /* ==========================================================================
+       Header & Brand Navigation
+       ========================================================================== */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 16px;
-      margin-bottom: 32px;
-      animation: fadeInDown 0.6s ease-out;
-    }
-    
-    @keyframes fadeInDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+      flex-wrap: wrap;
     }
 
-    .title { display: flex; align-items: center; gap: 16px; }
-    .title img { 
-      border-radius: 14px; 
-      box-shadow: 0 12px 30px rgba(0,0,0,0.25); 
-      transition: transform 0.3s ease;
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-    .title img:hover { transform: scale(1.05); }
-    
-    .title h1 { 
-      margin: 0; 
-      font-size: 32px; 
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      display: block;
+      object-fit: cover;
+    }
+
+    .brand-title {
+      font-size: 18px;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
     }
-    .title p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--primary-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+    }
+
+    .brand-desc {
+      color: var(--text-muted);
+      font-size: 12.5px;
+      margin-top: 2px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
     .theme-btn {
       border: 1px solid var(--card-border);
       background: var(--card);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
       color: var(--text);
-      border-radius: 999px;
-      padding: 10px 20px;
+      border-radius: 6px;
+      padding: 5px 12px;
       cursor: pointer;
       font-weight: 500;
-      transition: all 0.3s ease;
+      font-size: 13px;
+      transition: background 0.15s, border-color 0.15s;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
-    .theme-btn:hover { background: var(--hover); transform: translateY(-2px); }
-
-    .tabs {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 24px;
-      overflow-x: auto;
-      padding-bottom: 8px;
-    }
-    .tabs::-webkit-scrollbar { height: 4px; }
-    .tabs::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 4px; }
-
-    .tab-btn {
-      border: 1px solid var(--card-border);
-      background: var(--card);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: var(--text);
-      border-radius: 999px;
-      padding: 10px 22px;
-      cursor: pointer;
-      white-space: nowrap;
-      font-weight: 500;
-      font-size: 15px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .tab-btn:hover { background: var(--hover); }
-    .tab-btn.active { 
-      background: linear-gradient(135deg, var(--accent), var(--accent-2)); 
-      border-color: transparent; 
-      color: white;
-      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-      transform: translateY(-1px);
-    }
-    
-    .tab-content { 
-      display: none; 
-      animation: fadeIn 0.4s ease-out;
-    }
-    .tab-content.active { display: block; }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .theme-btn:hover {
+      background: var(--hover);
+      border-color: var(--card-border-hover);
     }
 
-    .card {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 24px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      box-shadow: var(--card-shadow);
-      margin-bottom: 24px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .card:hover { transform: translateY(-2px); box-shadow: 0 20px 45px rgba(0,0,0,0.15); }
-    .card h2 { 
-      margin-top: 0; 
-      margin-bottom: 20px; 
-      font-size: 20px; 
-      font-weight: 600; 
-      display: flex;
+    .user-auth-badge {
+      display: inline-flex;
       align-items: center;
-      gap: 10px;
-    }
-    .muted { color: var(--muted); }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 18px;
-    }
-    .stat {
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
       border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 20px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
-      transition: all 0.3s ease;
-    }
-    .stat:hover { background: rgba(255,255,255,0.05); }
-    .stat-label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-    .stat-value { margin-top: 10px; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
-    
-    .status-row { display: flex; align-items: center; gap: 12px; }
-    .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--success); box-shadow: 0 0 12px var(--success); }
-    .dot.warning { background: var(--warning); box-shadow: 0 0 12px var(--warning); }
-    .dot.offline { background: var(--danger); box-shadow: 0 0 12px var(--danger); }
-
-    .toolbar {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-    .form-control, textarea {
-      width: 100%;
-      border: 1px solid var(--card-border);
-      background: var(--input);
+      background: var(--card);
+      font-size: 12.5px;
       color: var(--text);
-      border-radius: 12px;
-      padding: 12px 16px;
-      outline: none;
-      font-family: inherit;
-      font-size: 14px;
-      transition: all 0.2s ease;
     }
-    .form-control:focus, textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-    }
-    .toolbar .form-control { width: auto; min-width: 160px; }
-    textarea.form-control { min-height: 120px; resize: vertical; line-height: 1.5; }
-    
-    .btn {
-      border: none;
-      border-radius: 12px;
-      padding: 12px 20px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: white;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 14px;
-      transition: all 0.3s ease;
+
+    .github-link {
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 5px 8px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
     }
-    .btn:hover {
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-      transform: translateY(-2px);
-    }
-    .btn:active { transform: translateY(0); }
-    
-    .btn.secondary {
-      background: transparent;
-      border: 1px solid var(--card-border);
+    .github-link:hover {
       color: var(--text);
-    }
-    .btn.secondary:hover { background: var(--hover); box-shadow: none; }
-    
-    .btn.danger {
-      background: transparent;
-      border: 1px solid rgba(239, 68, 68, 0.5);
-      color: var(--danger);
-    }
-    .btn.danger:hover {
-      background: rgba(239, 68, 68, 0.1);
-      border-color: var(--danger);
-      box-shadow: none;
+      background: var(--hover);
+      border-color: var(--card-border-hover);
     }
 
-    .protocol-selector {
-      display: inline-flex;
-      background: var(--input);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 4px;
-      gap: 6px;
+    /* ==========================================================================
+       GitHub UnderlineNav (Zero Scrollbar Bug)
+       ========================================================================== */
+    .tabs-wrapper {
       margin-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
     }
-    .protocol-opt {
-      padding: 9px 20px;
-      border-radius: 9px;
+
+    .tabs-wrapper::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 2px;
+      min-width: max-content;
+      align-items: center;
+      margin-bottom: -1px;
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      padding: 8px 16px;
       cursor: pointer;
-      font-size: 14px;
+      white-space: nowrap;
       font-weight: 500;
-      color: var(--muted);
-      transition: all 0.2s ease;
+      font-size: 13.5px;
+      transition: color 0.15s, border-color 0.15s, background-color 0.15s;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      user-select: none;
+      line-height: 22px;
+      border-top-left-radius: 6px;
+      border-top-right-radius: 6px;
     }
-    .protocol-opt:hover {
+
+    .tab-btn:hover {
+      color: var(--text);
+      background-color: var(--hover);
+    }
+
+    .tab-btn.active {
+      color: var(--text);
+      font-weight: 600;
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: tabFadeIn 0.15s ease-out;
+    }
+
+    @keyframes tabFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* ==========================================================================
+       Cards & Box Layouts (6px Rounded Corners)
+       ========================================================================== */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: var(--card-header);
+      border-bottom: 1px solid var(--card-border);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       color: var(--text);
     }
-    .protocol-opt.active {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      color: white;
-      font-weight: 600;
-      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 1px;
     }
-    .protocol-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      background: rgba(59, 130, 246, 0.15);
-      color: var(--accent);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      vertical-align: middle;
-      margin-left: 6px;
+
+    .card-body {
+      padding: 16px;
+    }
+
+    /* Grids */
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
     }
 
     .grid-2 {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px;
+      gap: 14px;
     }
 
-    table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      overflow: hidden;
-      border-radius: 12px;
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
     }
-    th {
-      text-align: left;
-      padding: 16px;
-      color: var(--muted);
-      font-weight: 600;
-      font-size: 14px;
-      background: rgba(0,0,0,0.02);
-      border-bottom: 2px solid var(--card-border);
+
+    .grid-balanced-content {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
     }
-    td {
-      text-align: left;
-      padding: 16px;
-      border-bottom: 1px solid var(--card-border);
-      vertical-align: middle;
-      font-size: 15px;
+
+    /* KPI Metric Cards */
+    .kpi-card {
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      background: var(--card);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s;
     }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--hover); }
-    
-    .tag {
-      display: inline-flex;
-      padding: 4px 10px;
-      border-radius: 999px;
+    .kpi-card:hover {
+      border-color: var(--card-border-hover);
+    }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .kpi-label {
+      color: var(--text-muted);
       font-size: 12px;
-      font-weight: 600;
-      margin: 3px 6px 3px 0;
-      background: rgba(59, 130, 246, 0.15);
-      color: var(--accent-hover);
-      border: 1px solid rgba(59, 130, 246, 0.2);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    .target-tag {
-      display: inline-flex;
+
+    .kpi-value {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      line-height: 1.25;
+    }
+
+    .kpi-subtext {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    /* Status Dot */
+    .status-row {
+      display: flex;
       align-items: center;
       gap: 8px;
-      padding: 4px 12px;
-      border-radius: 999px;
-      background: rgba(16, 185, 129, 0.12);
-      color: var(--success);
-      margin: 3px 6px 3px 0;
-      font-size: 13px;
-      font-weight: 500;
-      border: 1px solid rgba(16, 185, 129, 0.2);
+      flex-wrap: wrap;
     }
-    .target-remove { 
-      color: var(--danger); 
-      cursor: pointer; 
-      text-decoration: none; 
-      font-weight: bold;
-      opacity: 0.7;
-      transition: opacity 0.2s;
-    }
-    .target-remove:hover { opacity: 1; }
 
-    .log-box {
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      background: #09101d;
-      color: #dbe7f5;
-      padding: 16px;
-      min-height: 500px;
-      max-height: 500px;
-      overflow-y: auto;
-      font-family: "Cascadia Code", Consolas, monospace;
-      font-size: 13px;
-      line-height: 1.6;
-      box-shadow: inset 0 4px 12px rgba(0,0,0,0.2);
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      display: inline-block;
+      flex-shrink: 0;
     }
-    .log-box::-webkit-scrollbar { width: 8px; }
-    .log-box::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-    
-    .log-line { 
-      padding: 5px 8px; 
+
+    .dot.warning { background: var(--warning); }
+    .dot.offline { background: var(--danger); }
+
+    .protocol-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
       border-radius: 6px;
-      word-break: break-word; 
-      transition: background 0.2s;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--primary-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+      vertical-align: middle;
     }
-    .log-line:hover { background: rgba(255,255,255,0.05); }
-    .log-time { color: #64748b; margin-right: 10px; user-select: none; }
-    .log-INFO { color: #38bdf8; font-weight: 600; margin-right: 6px; }
-    .log-WARN { color: #fbbf24; font-weight: 600; margin-right: 6px; }
-    .log-ERROR { color: #f87171; font-weight: 600; margin-right: 6px; }
-    .log-DEBUG { color: #94a3b8; font-weight: 600; margin-right: 6px; }
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px;
+    /* ==========================================================================
+       Buttons & Inputs (Precise GitHub Style)
+       ========================================================================== */
+    .btn {
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 6px 14px;
+      background: var(--primary);
+      color: var(--bg);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-decoration: none;
+      white-space: nowrap;
+      line-height: 20px;
     }
+
+    .btn:hover {
+      opacity: 0.92;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn.secondary {
+      background: var(--card);
+      color: var(--text);
+      border-color: var(--card-border);
+    }
+    .btn.secondary:hover {
+      background: var(--hover);
+      border-color: var(--card-border-hover);
+    }
+
+    .btn.danger {
+      background: var(--danger-subtle);
+      border-color: rgba(248, 81, 73, 0.4);
+      color: var(--danger);
+    }
+    .btn.danger:hover {
+      background: var(--danger);
+      color: #ffffff;
+      border-color: var(--danger);
+    }
+
+    .btn.sm {
+      padding: 3px 10px;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
     .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 14px;
-      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
       color: var(--text);
     }
 
-    .feedback { margin-left: 16px; color: var(--success); font-weight: 500; font-size: 14px; animation: fadeIn 0.3s; }
-
-    @media (max-width: 900px) {
-      body { padding: 20px 14px; }
-      .grid-2, .form-grid { grid-template-columns: 1fr; }
-      .header { flex-direction: column; align-items: flex-start; }
-      .stats { grid-template-columns: 1fr; }
-      .toolbar { flex-direction: column; }
-      .toolbar .form-control { width: 100%; }
+    .form-control {
+      width: 100%;
+      border: 1px solid var(--input-border);
+      background: var(--input);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 10px;
+      outline: none;
+      font-family: inherit;
+      font-size: 13.5px;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
+    .form-control:focus {
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+    }
+
+    /* Fixed Custom Select with Crisp SVG Arrow */
+    select.form-control {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b949e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 14px;
+      padding-right: 32px;
+      cursor: pointer;
+      background-color: var(--input);
+      height: 36px;
+      line-height: 20px;
+    }
+
+    :root[data-theme="light"] select.form-control {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2357606a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    }
+
+    select.form-control option {
+      background-color: var(--card);
+      color: var(--text);
+      padding: 6px 10px;
+    }
+
+    /* Prevent browser autofill bright overlay */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover, 
+    input:-webkit-autofill:focus, 
+    textarea:-webkit-autofill {
+      -webkit-text-fill-color: var(--text);
+      -webkit-box-shadow: 0 0 0px 1000px var(--input) inset;
+      transition: background-color 5000s ease-in-out 0s;
+    }
+
+    textarea.form-control {
+      min-height: 70px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .input-hint {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* ==========================================================================
+       Fixed Protocol & Segmented Controls (Zero Layout Shift)
+       ========================================================================== */
+    .protocol-selector {
+      display: inline-flex;
+      background: var(--bg-subtle);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 3px;
+      gap: 3px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .protocol-opt {
+      padding: 6px 14px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+      outline: none;
+    }
+
+    .protocol-opt:hover {
+      color: var(--text);
+      background: var(--hover);
+    }
+
+    .protocol-opt:active {
+      transform: scale(0.98);
+    }
+
+    .protocol-opt.active {
+      background: var(--card);
+      color: var(--text);
+      font-weight: 500;
+      border-color: var(--card-border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Subscriptions List */
+    .target-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .target-item {
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .target-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .target-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .target-type-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 6px;
+      background: var(--success-subtle);
+      color: var(--success);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+    .target-type-pill.private {
+      background: var(--accent-subtle);
+      color: var(--accent);
+      border-color: rgba(88, 166, 255, 0.3);
+    }
+
+    .events-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      background: var(--primary-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+    }
+
+    /* Terminal Console */
+    .terminal-container {
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      background: var(--term-bg);
+      overflow: hidden;
+    }
+
+    .terminal-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .terminal-title {
+      font-size: 12px;
+      color: #8b949e;
+      font-family: "JetBrains Mono", monospace;
+    }
+
+    .log-box {
+      color: #e6edf3;
+      padding: 12px;
+      min-height: 460px;
+      max-height: 540px;
+      overflow-y: auto;
+      font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      background: var(--term-bg);
+    }
+
+    .log-box::-webkit-scrollbar { width: 6px; }
+    .log-box::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 3px;
+    }
+
+    .log-line {
+      padding: 2px 6px;
+      border-radius: 4px;
+      word-break: break-all;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .log-line:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .log-time {
+      color: #6e7681;
+      user-select: none;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .log-level-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 0 4px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .log-level-tag.INFO { color: #58a6ff; background: rgba(56, 139, 253, 0.15); }
+    .log-level-tag.WARN { color: #d29922; background: rgba(210, 153, 34, 0.15); }
+    .log-level-tag.ERROR { color: #f85149; background: rgba(248, 81, 73, 0.15); }
+    .log-level-tag.DEBUG { color: #8b949e; background: rgba(139, 148, 158, 0.15); }
+
+    .log-msg { flex: 1; }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    /* Config Save Bar (Clean Static Footer) */
+    .save-sticky-bar {
+      margin-top: 24px;
+      margin-bottom: 24px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 14px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .feedback {
+      color: var(--success);
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Modals */
     .modal-overlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-      display: flex; justify-content: center; align-items: center;
-      z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.65);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
     }
-    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-overlay.active { display: flex; }
+
     .modal {
-      background: var(--card); border: 1px solid var(--card-border);
-      border-radius: 20px; width: 90%; max-width: 500px;
-      max-height: 80vh; display: flex; flex-direction: column;
-      box-shadow: var(--card-shadow);
-      transform: translateY(20px); transition: transform 0.3s;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      width: 92%;
+      max-width: 520px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+      animation: modalFadeIn 0.15s ease-out;
     }
-    .modal-overlay.active .modal { transform: translateY(0); }
-    .modal-header { padding: 20px; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; }
-    .modal-header h3 { margin: 0; font-size: 18px; }
-    .modal-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; }
-    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+    @keyframes modalFadeIn {
+      from { transform: scale(0.97); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-header);
+    }
+    .modal-header h3 { font-size: 14px; font-weight: 600; color: var(--text); }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    .modal-close:hover { color: var(--text); background: var(--hover); }
+    .modal-body { padding: 16px; overflow-y: auto; flex: 1; }
+
     .group-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 12px; border: 1px solid var(--card-border); border-radius: 10px;
-      margin-bottom: 8px; cursor: pointer; transition: background 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      background: var(--bg);
     }
-    .group-item:hover { background: var(--hover); }
-    .group-name { font-weight: 500; color: var(--text); }
-    .group-id { font-size: 13px; color: var(--muted); }
+    .group-item:hover { background: var(--hover); border-color: var(--card-border-hover); }
+    .group-name { font-weight: 600; color: var(--text); font-size: 13.5px; }
+    .group-id { font-size: 12px; color: var(--text-muted); font-family: "JetBrains Mono", monospace; }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: toastIn 0.2s ease-out;
+      max-width: 380px;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateY(-8px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .callout {
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin: 12px 0;
+      display: flex;
+      gap: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .callout.info { background: var(--accent-subtle); border: 1px solid rgba(88, 166, 255, 0.3); color: var(--text); }
+    .callout.warning { background: var(--warning-subtle); border: 1px solid rgba(210, 153, 34, 0.3); color: var(--text); }
+
+    /* ==========================================================================
+       Dedicated Login View (State-of-the-Art GitHub Design)
+       ========================================================================== */
+    #login-view {
+      display: none;
+      min-height: 85vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      position: relative;
+    }
+
+    .login-nav {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .login-box {
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .login-logo-svg {
+      width: 52px;
+      height: 52px;
+      margin-bottom: 14px;
+      color: var(--text);
+    }
+
+    .login-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .login-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .login-error {
+      display: none;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      border-radius: 6px;
+      background: var(--danger-subtle);
+      border: 1px solid rgba(248, 81, 73, 0.4);
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* ==========================================================================
+       Responsive Screen Adaptations
+       ========================================================================== */
+    @media (max-width: 1024px) {
+      .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-balanced-content { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 12px 10px 60px; }
+      .header { flex-direction: column; align-items: stretch; gap: 12px; }
+      .brand-section { width: 100%; }
+      .header-actions {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .user-auth-badge {
+        font-size: 12px;
+        padding: 4px 8px;
+      }
+      .tabs-wrapper {
+        margin-bottom: 16px;
+      }
+      .tabs {
+        width: 100%;
+        min-width: 0;
+        gap: 0;
+      }
+      .tab-btn {
+        padding: 9px 6px;
+        font-size: 13px;
+        gap: 5px;
+        flex: 1;
+        justify-content: center;
+        white-space: nowrap;
+      }
+      .tab-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+      .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .kpi-card { padding: 10px 12px; }
+      .kpi-value { font-size: 17px; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 10px; }
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .toolbar > div {
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+      .toolbar .form-control {
+        width: 100% !important;
+      }
+      .protocol-selector {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 4px;
+      }
+      .protocol-opt {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+        padding: 8px 12px;
+      }
+      #section-qqbot .protocol-selector {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .save-sticky-bar {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+        padding: 12px 16px;
+      }
+      .save-sticky-bar .btn {
+        width: 100%;
+      }
+      .form-control, select.form-control {
+        font-size: 14px;
+        height: 38px;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="title">
-        <img src="/icon.png" width="48" height="48" alt="logo">
-        <div>
-          <h1>GitHub QQ 推送管理</h1>
-          <p>Webhook、事件轮询、订阅管理、运行日志及配置中心</p>
-        </div>
-      </div>
-      <button class="theme-btn" id="theme-btn" onclick="toggleTheme()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: var(--icon-dark, block)">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-        </svg>
-        <span id="theme-text">深色模式</span>
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Dedicated Login View (Rendered when authentication is required) -->
+  <div id="login-view">
+    <div class="login-nav">
+      <button class="theme-btn" onclick="toggleTheme()" id="btn-theme-login" title="切换深浅色彩模式">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <span id="theme-text-login">深色模式</span>
       </button>
+      <a href="https://github.com/baiyu-yu/github-qq-push" target="_blank" class="github-link" title="GitHub 仓库">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      </a>
     </div>
 
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="tab-overview" onclick="switchTab(event, 'tab-overview')">运行总览</button>
-      <button class="tab-btn" data-tab="tab-logs" onclick="switchTab(event, 'tab-logs')">系统日志</button>
-      <button class="tab-btn" data-tab="tab-subs" onclick="switchTab(event, 'tab-subs')">订阅管理</button>
-      <button class="tab-btn" data-tab="tab-config" onclick="switchTab(event, 'tab-config')">全局配置</button>
-    </div>
-
-    <div id="tab-overview" class="tab-content active">
-      <div class="card">
-        <h2>运行状态</h2>
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-label">机器人身份 (Bot Identity)</div>
-            <div class="stat-value" id="bot-identity">等待数据中...</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">机器人服务 (Bot Status) <span class="protocol-badge" id="bot-proto-badge">OneBot</span></div>
-            <div class="stat-value status-row">
-              <span class="dot" id="dot"></span>
-              <span id="service-status">加载中...</span>
-            </div>
-            <div style="margin-top: 14px; display: flex; gap: 10px;">
-              <button id="btn-reconnect" class="btn secondary" style="display:none" onclick="triggerAction('reconnect')">重新连接</button>
-              <button id="btn-stop" class="btn danger" style="display:none" onclick="triggerAction('stop')">停止重试</button>
-            </div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">运行时长 (Uptime)</div>
-            <div class="stat-value" id="uptime-display">-</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">订阅数量 (Subscriptions)</div>
-            <div class="stat-value" id="sub-count">-</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">已禁用群组 (Disabled Groups)</div>
-            <div class="stat-value" id="disabled-count">-</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-logs" class="tab-content">
-      <div class="card">
-        <h2>系统日志</h2>
-        <div class="toolbar">
-          <select id="log-level" class="form-control" onchange="fetchLogs()">
-            <option value="ALL">所有等级 (All)</option>
-            <option value="INFO">INFO</option>
-            <option value="WARN">WARN</option>
-            <option value="ERROR">ERROR</option>
-            <option value="DEBUG">DEBUG</option>
-          </select>
-          <select id="log-source" class="form-control" onchange="filterLogsDOM()">
-            <option value="ALL">所有来源 (Sources)</option>
-          </select>
-          <input id="log-search" class="form-control" style="flex:1" placeholder="搜索日志关键词..." oninput="filterLogsDOM()">
-          <button class="btn" onclick="fetchLogs()">刷新日志</button>
-        </div>
-        <div id="terminal" class="log-box">
-          <div class="muted">等待日志数据...</div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-subs" class="tab-content">
-      <div class="card">
-        <h2>已添加的订阅</h2>
-        <div style="overflow-x:auto">
-          <table id="subs-table">
-            <thead>
-              <tr>
-                <th>代码仓库 (Repository)</th>
-                <th>触发事件 (Events)</th>
-                <th>推送目标 (Targets)</th>
-                <th style="text-align:right">操作 (Actions)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td colspan="4" class="muted">加载中...</td></tr>
-            </tbody>
-          </table>
-        </div>
+    <div class="login-box">
+      <div class="login-header">
+        <svg class="login-logo-svg" width="52" height="52" viewBox="0 0 24 24" fill="currentColor">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+        </svg>
+        <h2 class="login-title">登录到 GitHub QQ Push</h2>
+        <p class="login-desc">请输入管理员认证凭据进入管理控制台</p>
       </div>
 
-      <div class="card">
-        <h2>添加新订阅</h2>
-        <div class="grid-2">
+      <div class="login-card">
+        <div class="login-error" id="login-error"></div>
+        <form onsubmit="handleLoginSubmit(event)">
           <div class="form-group">
-            <label>代码仓库 (owner/repo)</label>
-            <input id="add-repo" class="form-control" placeholder="例如：baiyu-yu/github-qq-push">
-          </div>
-          <div class="form-group">
-            <label>目标类型 (Target Type)</label>
-            <select id="add-type" class="form-control">
-              <option value="group">QQ 群组 (Group)</option>
-              <option value="private">私聊好友 (Private)</option>
-            </select>
+            <label for="login-username">用户名</label>
+            <input type="text" id="login-username" class="form-control" autocomplete="username" placeholder="默认 admin" required autofocus>
           </div>
           <div class="form-group">
-            <label>目标 ID (QQ/群号)</label>
-            <div style="display: flex; gap: 8px;">
-              <input id="add-id" class="form-control" placeholder="例如：123456789">
-              <button class="btn secondary" onclick="openGroupSelector('add-id')">选择群聊</button>
-            </div>
+            <label for="login-password">访问密码</label>
+            <input type="password" id="login-password" class="form-control" autocomplete="current-password" placeholder="请输入密码" required>
           </div>
-          <div class="form-group" style="display: flex; align-items: flex-end;">
-            <button class="btn" onclick="addSubscriptionRow()" style="width: 100%;">确认添加</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="tab-config" class="tab-content">
-      <div class="card">
-        <h2>全局配置</h2>
-        
-        <h3 style="margin-top:20px; color: var(--accent);">机器人协议与连接设置</h3>
-        <div style="margin-bottom: 8px;">
-          <label style="display:block; margin-bottom: 8px; font-weight: 600;">通信协议 (Protocol Adapter)</label>
-          <div class="protocol-selector" id="proto-selector">
-            <div class="protocol-opt active" id="proto-opt-onebot" onclick="switchProtocol('onebot')">
-              <span>OneBot v11 (WebSocket)</span>
-            </div>
-            <div class="protocol-opt" id="proto-opt-milky" onclick="switchProtocol('milky')">
-              <span>Milky (HTTP + WebSocket)</span>
-            </div>
-            <div class="protocol-opt" id="proto-opt-qqbot" onclick="switchProtocol('qqbot')">
-              <span>QQ 机器人开放平台 (API v2)</span>
-            </div>
-          </div>
-        </div>
-
-        <div id="section-onebot" class="form-grid">
-          <div class="form-group">
-            <label>OneBot WebSocket 地址 (WS URL)</label>
-            <input id="cfg-ob-ws" class="form-control" placeholder="ws://127.0.0.1:3001">
-          </div>
-          <div class="form-group">
-            <label>OneBot 访问令牌 (Access Token)</label>
-            <input id="cfg-ob-token" type="password" class="form-control">
-          </div>
-          <div class="form-group">
-            <label>指令前缀 (Command Prefix)</label>
-            <input id="cfg-ob-prefix" class="form-control" placeholder="/">
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Master QQ 列表 (每行一个 QQ 号，具有最高管理权限，可跨越群主/管理限制)</label>
-            <textarea id="cfg-ob-masters" class="form-control" placeholder="12345678&#10;87654321" rows="2"></textarea>
-          </div>
-        </div>
-
-        <div id="section-milky" class="form-grid" style="display:none;">
-          <div class="form-group">
-            <label>Milky 端点地址 (Endpoint URL)</label>
-            <input id="cfg-milky-endpoint" class="form-control" placeholder="http://127.0.0.1:3000">
-            <div class="muted" style="font-size: 12px; margin-top: 4px;">Milky 服务地址，将自动调用 HTTP API 与连接 /event 事件流</div>
-          </div>
-          <div class="form-group">
-            <label>Milky 访问令牌 (Access Token)</label>
-            <input id="cfg-milky-token" type="password" class="form-control">
-          </div>
-          <div class="form-group">
-            <label>指令前缀 (Command Prefix)</label>
-            <input id="cfg-milky-prefix" class="form-control" placeholder="/">
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Master QQ 列表 (每行一个 QQ 号，具有最高管理权限，可跨越群主/管理限制)</label>
-            <textarea id="cfg-milky-masters" class="form-control" placeholder="12345678&#10;87654321" rows="2"></textarea>
-          </div>
-        </div>
-
-        <div id="section-qqbot" class="form-grid" style="display:none;">
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label style="display:block; margin-bottom: 6px; font-weight: 600;">接入模式 (Connection Mode)</label>
-            <div class="protocol-selector" style="max-width: 520px; margin-bottom: 8px;">
-              <div class="protocol-opt active" id="qqbot-mode-opt-ws" onclick="switchQQBotMode('ws')">
-                <span>WebSocket (网关长连接)</span>
-              </div>
-              <div class="protocol-opt" id="qqbot-mode-opt-webhook" onclick="switchQQBotMode('webhook')">
-                <span>Webhook (HTTP 回调推送)</span>
-              </div>
-            </div>
-            <div id="qqbot-mode-hint" class="muted" style="font-size: 13px; margin-top: 4px;">
-              WebSocket 模式：无需公网 IP 或独立域名，由本地客户端长连接至 QQ 开放平台网关。
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>AppID (机器人 ID) <span style="color:var(--danger)">*</span></label>
-            <input id="cfg-qqbot-appid" class="form-control" placeholder="开放平台管理端的 AppID (如 102030405)">
-          </div>
-          <div class="form-group">
-            <label>AppSecret (机器人密钥) <span style="color:var(--danger)">*</span></label>
-            <input id="cfg-qqbot-secret" type="password" class="form-control" placeholder="开放平台管理端的 AppSecret">
-          </div>
-
-          <div class="form-group" id="qqbot-webhook-url-box" style="grid-column: 1 / -1; display: none;">
-            <label>Webhook 回调地址 (Webhook URL)</label>
-            <div style="display: flex; gap: 8px;">
-              <input id="cfg-qqbot-computed-url" class="form-control" readonly style="background: rgba(0,0,0,0.2); font-family: monospace;">
-              <button class="btn secondary" style="white-space: nowrap;" onclick="copyQQBotWebhookUrl()">复制完整地址</button>
-            </div>
-            <div class="muted" style="font-size: 12px; margin-top: 4px;">
-              请将此地址配置到 QQ 开放平台管理端的「回调地址」中。系统内置 Ed25519 签名算法，在管理端提交保存时可自动完成 OpCode 13 地址安全验证。
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Webhook 接收路径 (Webhook Path)</label>
-            <input id="cfg-qqbot-path" class="form-control" placeholder="/qqbot/webhook" oninput="updateQQBotUrlPreview()">
-          </div>
-
-          <div class="form-group">
-            <label>运行环境 (Environment)</label>
-            <select id="cfg-qqbot-sandbox" class="form-control">
-              <option value="false">正式环境 (Production)</option>
-              <option value="true">沙箱环境 (Sandbox 测试群)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>指令前缀 (Command Prefix)</label>
-            <input id="cfg-qqbot-prefix" class="form-control" placeholder="/">
-          </div>
-
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Master OpenID 列表 (每行一个用户 OpenID，具有最高管理权限)</label>
-            <textarea id="cfg-qqbot-masters" class="form-control" placeholder="用户 OpenID (例如 48BC3990A1...)" rows="2"></textarea>
-          </div>
-
-          <div style="grid-column: 1 / -1; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 12px 16px; margin-top: 6px;">
-            <div style="font-weight: 600; color: #60a5fa; margin-bottom: 6px; font-size: 13px;">💡 QQ 机器人官方接口特性说明</div>
-            <div style="font-size: 12px; line-height: 1.6; color: var(--text-muted);">
-              • <b>主动消息 vs 被动消息</b>：用户发送的指令（如 <code>/status</code>、<code>/help</code>、<code>#123</code>）及代码卡片解析会自动附带 <code>msg_id</code> 与防重自增序号 <code>msg_seq</code>，走<b>被动消息</b>下发（图片采用二段式上传），<b>完全不占用机器人的主动消息每日限额</b>；GitHub 仓库事件（Push、PR、Issue 等）则作为<b>主动消息</b>推送，受平台每日频控限制（如已认证机器人每个群每日上限 1000 条）。<br>
-              • <b>群消息全量模式</b>：若在 QQ 开放平台管理端申请并开启了「接收所有消息」功能，系统将自动支持全量模式（<code>GROUP_MESSAGE_CREATE</code>），用户在群里直接发送 <code>/status</code>、<code>#123</code> 或 GitHub 链接即可响应，无需 @ 机器人；若未开启全量模式，群内需 @ 机器人触发（<code>GROUP_AT_MESSAGE_CREATE</code>）。
-            </div>
-          </div>
-        </div>
-
-        <h3 style="margin-top:30px; color: var(--accent);">WebUI 管理认证</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>登录用户名 (Username)</label>
-            <input id="cfg-webui-user" class="form-control" placeholder="admin">
-          </div>
-          <div class="form-group">
-            <label>登录密码 (Password) — 留空则管理面板无保护</label>
-            <input id="cfg-webui-pass" type="password" class="form-control" placeholder="请务必设置">
-          </div>
-          <div class="muted" style="grid-column: 1 / -1; font-size: 13px;">
-            警告：WebUI 可以读取/修改全部配置（含 Token 与密钥），且 Webhook 端口通常需要公网可达。
-            请务必设置密码，否则任何能访问该端口的人都能控制机器人并窃取凭据。
-          </div>
-        </div>
-
-        <h3 style="margin-top:30px; color: var(--accent);">GitHub 基础设置</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>GitHub Webhook 监听端口</label>
-            <input id="cfg-gh-port" type="number" class="form-control" placeholder="7890">
-          </div>
-          <div class="form-group">
-            <label>GitHub Webhook 密钥 (Secret)</label>
-            <input id="cfg-gh-secret" class="form-control">
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>GitHub 个人访问令牌 (PAT)</label>
-            <textarea id="cfg-gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxx" rows="3"></textarea>
-            <div class="muted" style="margin-top: 6px; font-size: 13px;">可输入多个 Token，每行一个。如果有多个则会轮询使用以分担额度限制。</div>
-          </div>
-        </div>
-
-        <h3 style="margin-top:30px; color: var(--accent);">GitHub 事件轮询设置</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>启用事件轮询 (Polling Enabled)</label>
-            <select id="cfg-polling-enabled" class="form-control">
-              <option value="true">是 (true)</option>
-              <option value="false">否 (false)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>轮询间隔 - 秒 (Polling Interval)</label>
-            <input id="cfg-polling-interval" type="number" class="form-control" min="10" max="600">
-          </div>
-        </div>
-
-        <h3 style="margin-top:30px; color: var(--accent);">图片渲染选项</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>渲染图片主题 (Render Theme)</label>
-            <select id="cfg-render-theme" class="form-control">
-              <option value="dark">深色模式 (dark)</option>
-              <option value="light">浅色模式 (light)</option>
-              <option value="github-dark-dimmed">GitHub 暗柔 (github-dark-dimmed)</option>
-              <option value="github-dark-high-contrast">GitHub 高对比 (github-dark-high-contrast)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>渲染图片质量 (Render Quality) 1-100</label>
-            <input id="cfg-render-quality" type="number" class="form-control" min="1" max="100">
-          </div>
-          <div class="form-group">
-            <label>渲染图片最大高度 (Render Max Height)</label>
-            <input id="cfg-render-maxheight" type="number" class="form-control" min="0">
-          </div>
-          <div class="form-group">
-            <label>渲染并发上限 (Render Concurrency)</label>
-            <input id="cfg-render-concurrency" type="number" class="form-control" min="1" placeholder="默认 2">
-          </div>
-          <div class="form-group">
-            <label>渲染队列上限 (Render Max Queue Size)</label>
-            <input id="cfg-render-maxqueuesize" type="number" class="form-control" min="0" placeholder="默认 50">
-          </div>
-          <div class="form-group">
-            <label>截图高度上限 (Max Screenshot Height)</label>
-            <input id="cfg-render-maxscreenshotheight" type="number" class="form-control" min="0" placeholder="默认 30000">
-          </div>
-        </div>
-
-        <h3 style="margin-top:30px; color: var(--accent);">推送目标限制</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>仓库链接卡片识别群组模式</label>
-            <select id="cfg-link-card-mode" class="form-control">
-              <option value="all">允许所有群组 (all)</option>
-              <option value="selected">仅允许选定群组 (selected)</option>
-              <option value="none">完全禁用 (none)</option>
-            </select>
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>允许识别 GitHub 链接并发送卡片的群组 (当启用 selected 模式时生效)</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <button class="btn secondary" onclick="openGroupSelector('cfg-link-card-groups', true)" style="padding: 8px 12px; font-size: 13px;">选择并追加群聊</button>
-            </div>
-            <textarea id="cfg-link-card-groups" class="form-control" placeholder="每行输入一个群号"></textarea>
-            <div class="muted" style="margin-top: 6px; font-size: 13px;">留空则无任何群组可识别，请在使用 "仅允许选定群组" 模式时配置。</div>
-          </div>
-        </div>
-
-        <div style="margin-top: 32px; display: flex; align-items: center; padding-top: 20px; border-top: 1px solid var(--card-border);">
-          <button class="btn" onclick="saveGlobalSettings()">保存配置并使之生效</button>
-          <span class="feedback" id="save-msg-global"></span>
-        </div>
+          <button type="submit" id="btn-do-login" class="btn" style="width: 100%; margin-top: 6px; padding: 9px; font-weight: 600;">
+            登录控制台
+          </button>
+        </form>
       </div>
     </div>
   </div>
 
+  <!-- Main Application Console View -->
+  <div class="container" id="main-app-view">
+    <!-- Top Header -->
+    <header class="header">
+      <div class="brand-section">
+        <img src="/icon.png" class="brand-logo" alt="Logo">
+        <div>
+          <h1 class="brand-title">
+            <span>GitHub QQ Push</span>
+            <span class="brand-badge">控制台</span>
+          </h1>
+          <p class="brand-desc">Webhook 接收 · 事件轮询 · 多端消息推送与管理</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <span class="user-auth-badge" id="auth-user-badge" style="display:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span id="auth-user-name">admin</span>
+          <button class="btn sm secondary" id="btn-do-logout" style="padding: 1px 6px; margin-left: 4px; font-size: 11px;" onclick="handleLogout()">退出</button>
+        </span>
+
+        <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="切换色彩主题">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <span id="theme-text">深色模式</span>
+        </button>
+
+        <a href="https://github.com/baiyu-yu/github-qq-push" target="_blank" rel="noopener noreferrer" class="github-link" title="查看 GitHub 开源仓库">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs (GitHub UnderlineNav) -->
+    <div class="tabs-wrapper">
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="tab-overview" onclick="switchTab(event, 'tab-overview')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span>运行总览</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-subs" onclick="switchTab(event, 'tab-subs')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span>订阅管理</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-logs" onclick="switchTab(event, 'tab-logs')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          <span>系统日志</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-config" onclick="switchTab(event, 'tab-config')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>全局配置</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ========================================================================
+         Tab 1: 运行总览 (Overview Tab)
+         ======================================================================== -->
+    <main id="tab-overview" class="tab-content active">
+      <div class="grid-4">
+        <!-- Metric 1 -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">
+              <span>机器人服务</span>
+              <span class="protocol-badge" id="bot-proto-badge">OneBot</span>
+            </span>
+          </div>
+          <div class="kpi-value status-row">
+            <span class="dot" id="dot"></span>
+            <span id="service-status" style="font-size: 16px;">加载中...</span>
+          </div>
+          <div style="margin-top: 8px; display: flex; gap: 6px;">
+            <button id="btn-reconnect" class="btn sm secondary" style="display:none" onclick="triggerAction('reconnect')">重新连接</button>
+            <button id="btn-stop" class="btn sm danger" style="display:none" onclick="triggerAction('stop')">停止重试</button>
+          </div>
+        </div>
+
+        <!-- Metric 2 -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">机器人账号身份</span>
+          </div>
+          <div class="kpi-value" id="bot-identity" style="font-size: 15px; word-break: break-all;">等待连接中...</div>
+          <div class="kpi-subtext">在线终端昵称与 QQ 账号</div>
+        </div>
+
+        <!-- Metric 3 -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">持续运行周期</span>
+          </div>
+          <div class="kpi-value" id="uptime-display" style="font-size: 16px;">-</div>
+          <div class="kpi-subtext">服务在线稳定运行时长</div>
+        </div>
+
+        <!-- Metric 4 -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">订阅与群组监控</span>
+          </div>
+          <div class="kpi-value">
+            <span id="sub-count">0</span>
+            <span style="font-size: 12.5px; font-weight: normal; color: var(--text-dim);">个仓库</span>
+          </div>
+          <div class="kpi-subtext">
+            已禁用推送群组：<span id="disabled-count" style="font-weight: 600; color: var(--text);">0</span> 个
+          </div>
+        </div>
+      </div>
+
+      <!-- Balanced 2-Column Content -->
+      <div class="grid-balanced-content">
+        <!-- Left: Service Status -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">服务核心状态</h2>
+              <div class="card-subtitle">核心通信组件与监听端口状态</div>
+            </div>
+            <button class="btn sm secondary" onclick="loadData()">刷新</button>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg); flex-wrap: wrap; gap: 8px;">
+              <div>
+                <div style="font-weight: 600; font-size: 13.5px;">GitHub Webhook 回调监听</div>
+                <div style="font-size: 12px; color: var(--text-muted);">接收实时 push、pull_request 及 issues 事件</div>
+              </div>
+              <span class="tag" id="overview-webhook-port">端口 7890</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg); flex-wrap: wrap; gap: 8px;">
+              <div>
+                <div style="font-weight: 600; font-size: 13.5px;">GitHub 事件定时轮询</div>
+                <div style="font-size: 12px; color: var(--text-muted);">支持无公网环境下的主动事件拉取</div>
+              </div>
+              <span class="tag" id="overview-polling-state">已启用 (30s)</span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg); flex-wrap: wrap; gap: 8px;">
+              <div>
+                <div style="font-weight: 600; font-size: 13.5px;">Puppeteer 动态图片排版引擎</div>
+                <div style="font-size: 12px; color: var(--text-muted);">代码变更与 GitHub 差异卡片生成引擎</div>
+              </div>
+              <span class="tag" id="overview-render-state">深色主题 / 质量 90</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Quick Links -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">快捷管理</h2>
+              <div class="card-subtitle">常用功能导航</div>
+            </div>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="btn secondary" style="justify-content: flex-start; padding: 10px 12px;" onclick="document.querySelector('[data-tab=tab-subs]').click();">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span style="font-weight: 500; font-size: 13px;">配置或添加仓库订阅</span>
+            </button>
+            <button class="btn secondary" style="justify-content: flex-start; padding: 10px 12px;" onclick="document.querySelector('[data-tab=tab-logs]').click();">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+              <span style="font-weight: 500; font-size: 13px;">查看实时系统与推送日志</span>
+            </button>
+            <button class="btn secondary" style="justify-content: flex-start; padding: 10px 12px;" onclick="document.querySelector('[data-tab=tab-config]').click();">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span style="font-weight: 500; font-size: 13px;">修改全局配置与接入协议</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Repositories Preview -->
+      <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">已配置代码仓库</h2>
+            <div class="card-subtitle">当前有效推送任务摘要</div>
+          </div>
+          <button class="btn sm secondary" onclick="document.querySelector('[data-tab=tab-subs]').click();">
+            进入管理
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="overview-subs-preview">
+            <div class="card-subtitle" style="text-align: center; padding: 14px;">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========================================================================
+         Tab 2: 订阅管理 (Subscriptions Tab)
+         ======================================================================== -->
+    <main id="tab-subs" class="tab-content">
+      <!-- Add Subscription -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">添加代码仓库订阅</h2>
+            <div class="card-subtitle">配置 GitHub 仓库推送至指定的群聊或个人</div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="grid-3" style="align-items: flex-start;">
+            <div class="form-group">
+              <label>代码仓库 (owner/repo) <span style="color:var(--danger)">*</span></label>
+              <input id="add-repo" class="form-control" placeholder="如：baiyu-yu/github-qq-push">
+              <div class="input-hint">格式：作者/仓库名</div>
+            </div>
+
+            <div class="form-group">
+              <label>目标类型</label>
+              <select id="add-type" class="form-control">
+                <option value="group">QQ 群聊 (Group)</option>
+                <option value="private">私聊好友 (Private)</option>
+              </select>
+              <div class="input-hint">推送至群消息或私聊</div>
+            </div>
+
+            <div class="form-group">
+              <label>目标 ID (QQ/群号) <span style="color:var(--danger)">*</span></label>
+              <div style="display: flex; gap: 6px;">
+                <input id="add-id" class="form-control" placeholder="如：123456789" style="flex:1;">
+                <button class="btn secondary" style="white-space: nowrap;" onclick="openGroupSelector('add-id')">
+                  选群
+                </button>
+              </div>
+              <div class="input-hint">填入群号或好友 QQ 号</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="font-size: 12.5px; color: var(--text-muted);">
+              默认订阅全部 11 类事件，添加后可随时定制
+            </div>
+            <button class="btn" onclick="addSubscriptionRow()">
+              确认添加订阅
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subscriptions List -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">已配置的订阅列表</h2>
+            <div class="card-subtitle">每个仓库可独立为不同的群组或好友定制事件</div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table id="subs-table" style="width: 100%; border-collapse: collapse; min-width: 500px;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--card-border); background: var(--card-header);">
+                <th style="text-align:left; padding: 10px 14px; font-size: 13px; color: var(--text-muted); font-weight: 600; width: 28%;">代码仓库</th>
+                <th style="text-align:left; padding: 10px 14px; font-size: 13px; color: var(--text-muted); font-weight: 600; width: 56%;">推送目标与订阅事件</th>
+                <th style="text-align:right; padding: 10px 14px; font-size: 13px; color: var(--text-muted); font-weight: 600; width: 16%;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td colspan="3" class="card-subtitle" style="text-align: center; padding: 24px;">加载订阅数据中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========================================================================
+         Tab 3: 系统日志 (System Logs Tab)
+         ======================================================================== -->
+    <main id="tab-logs" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">系统日志</h2>
+            <div class="card-subtitle">监控服务运行、GitHub 消息推送与错误追踪</div>
+          </div>
+
+          <div style="display: flex; gap: 6px;">
+            <button class="btn sm secondary" onclick="copyAllLogs()">复制日志</button>
+            <button class="btn sm" onclick="fetchLogs()">刷新</button>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="toolbar">
+            <div style="min-width: 130px; flex: 1;">
+              <select id="log-level" class="form-control" onchange="fetchLogs()">
+                <option value="ALL">所有等级 (All)</option>
+                <option value="INFO">INFO (信息)</option>
+                <option value="WARN">WARN (警告)</option>
+                <option value="ERROR">ERROR (错误)</option>
+                <option value="DEBUG">DEBUG (调试)</option>
+              </select>
+            </div>
+
+            <div style="min-width: 150px; flex: 1;">
+              <select id="log-source" class="form-control" onchange="filterLogsDOM()">
+                <option value="ALL">所有来源模块 (All)</option>
+              </select>
+            </div>
+
+            <div style="flex: 2; min-width: 180px;">
+              <input id="log-search" class="form-control" placeholder="输入关键词搜索日志..." oninput="filterLogsDOM()">
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label style="font-size: 12.5px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none;">
+                <input type="checkbox" id="log-autoscroll" checked style="cursor: pointer;">
+                自动滚屏
+              </label>
+            </div>
+          </div>
+
+          <div class="terminal-container">
+            <div class="terminal-topbar">
+              <div class="terminal-title">console.output</div>
+              <div id="log-count-badge" style="font-size: 11px; color: #8b949e; font-family: monospace;">0 lines</div>
+            </div>
+            <div id="terminal" class="log-box">
+              <div class="card-subtitle" style="padding: 10px;">等待获取日志流...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========================================================================
+         Tab 4: 全局配置 (Global Config Tab)
+         ======================================================================== -->
+    <main id="tab-config" class="tab-content">
+      <!-- Section 1: Bot Protocol Adapter -->
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <div>
+            <h2 class="card-title">机器人协议适配器设置</h2>
+            <div class="card-subtitle">支持 OneBot v11、Milky 及 QQ 官方开放平台</div>
+          </div>
+          <button class="btn sm" onclick="saveGlobalSettings()">
+            保存配置
+          </button>
+        </div>
+
+        <div class="card-body">
+          <div class="protocol-selector" id="proto-selector">
+            <button type="button" class="protocol-opt active" id="proto-opt-onebot" onclick="switchProtocol('onebot')">
+              OneBot v11 (WebSocket)
+            </button>
+            <button type="button" class="protocol-opt" id="proto-opt-milky" onclick="switchProtocol('milky')">
+              Milky (HTTP + WebSocket)
+            </button>
+            <button type="button" class="protocol-opt" id="proto-opt-qqbot" onclick="switchProtocol('qqbot')">
+              QQ 机器人开放平台 (API v2)
+            </button>
+          </div>
+
+          <!-- OneBot -->
+          <div id="section-onebot">
+            <div class="grid-2">
+              <div class="form-group">
+                <label>OneBot WebSocket 服务地址 (WS URL) <span style="color:var(--danger)">*</span></label>
+                <input id="cfg-ob-ws" class="form-control" placeholder="如：ws://127.0.0.1:3001">
+                <div class="input-hint">NapCat / LLOneBot 正向 WebSocket 监听地址</div>
+              </div>
+              <div class="form-group">
+                <label>OneBot 访问令牌 (Access Token)</label>
+                <input id="cfg-ob-token" type="password" class="form-control" placeholder="若未设置请留空">
+                <div class="input-hint">与 OneBot 服务端 accessToken 严格一致</div>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label>指令前缀</label>
+                <input id="cfg-ob-prefix" class="form-control" placeholder="/">
+                <div class="input-hint">触发机器人的前缀字符</div>
+              </div>
+              <div class="form-group">
+                <label>Master QQ 账号列表 (每行一个)</label>
+                <textarea id="cfg-ob-masters" class="form-control" placeholder="12345678" rows="2"></textarea>
+                <div class="input-hint">超级管理员拥有最高权限</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Milky -->
+          <div id="section-milky" style="display:none;">
+            <div class="grid-2">
+              <div class="form-group">
+                <label>Milky 端点地址 (Endpoint URL) <span style="color:var(--danger)">*</span></label>
+                <input id="cfg-milky-endpoint" class="form-control" placeholder="http://127.0.0.1:3000">
+                <div class="input-hint">Milky 服务的 HTTP 地址，系统自动连接 /event 事件流</div>
+              </div>
+              <div class="form-group">
+                <label>Milky 访问令牌 (Access Token)</label>
+                <input id="cfg-milky-token" type="password" class="form-control" placeholder="若未设置请留空">
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label>指令前缀</label>
+                <input id="cfg-milky-prefix" class="form-control" placeholder="/">
+              </div>
+              <div class="form-group">
+                <label>Master QQ 账号列表 (每行一个)</label>
+                <textarea id="cfg-milky-masters" class="form-control" placeholder="12345678" rows="2"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- QQBot -->
+          <div id="section-qqbot" style="display:none;">
+            <div class="form-group">
+              <label>接入模式</label>
+              <div class="protocol-selector" style="margin-bottom: 6px;">
+                <button type="button" class="protocol-opt active" id="qqbot-mode-opt-ws" onclick="switchQQBotMode('ws')">
+                  WebSocket
+                </button>
+                <button type="button" class="protocol-opt" id="qqbot-mode-opt-webhook" onclick="switchQQBotMode('webhook')">
+                  Webhook
+                </button>
+              </div>
+              <div id="qqbot-mode-hint" class="input-hint">
+                WebSocket 模式：无需公网 IP 或独立域名，本地客户端长连接至 QQ 开放平台网关。
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label>AppID<span style="color:var(--danger)">*</span></label>
+                <input id="cfg-qqbot-appid" class="form-control" placeholder="开放平台 AppID">
+              </div>
+              <div class="form-group">
+                <label>AppSecret<span style="color:var(--danger)">*</span></label>
+                <input id="cfg-qqbot-secret" type="password" class="form-control" placeholder="开放平台 AppSecret">
+              </div>
+            </div>
+
+            <div class="form-group" id="qqbot-webhook-url-box" style="display: none;">
+              <label>QQ 开放平台 Webhook 回调完整地址</label>
+              <div style="display: flex; gap: 6px;">
+                <input id="cfg-qqbot-computed-url" class="form-control" readonly style="font-family: monospace; background: var(--bg);">
+                <button class="btn secondary" style="white-space: nowrap;" onclick="copyQQBotWebhookUrl()">复制完整地址</button>
+              </div>
+              <div class="input-hint">填入腾讯开放平台管理端的回调配置中，内置 Ed25519 签名验证。</div>
+            </div>
+
+            <div class="grid-3">
+              <div class="form-group">
+                <label>Webhook 路径</label>
+                <input id="cfg-qqbot-path" class="form-control" placeholder="/qqbot/webhook" oninput="updateQQBotUrlPreview()">
+              </div>
+              <div class="form-group">
+                <label>运行环境</label>
+                <select id="cfg-qqbot-sandbox" class="form-control">
+                  <option value="false">正式环境 (Production)</option>
+                  <option value="true">沙箱环境 (Sandbox 测试)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>指令前缀</label>
+                <input id="cfg-qqbot-prefix" class="form-control" placeholder="/">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Master OpenID 列表 (每行一个)</label>
+              <textarea id="cfg-qqbot-masters" class="form-control" placeholder="用户 OpenID" rows="2"></textarea>
+            </div>
+
+            <div class="callout info">
+              <div>
+                <strong>QQ 官方接口规则：</strong>
+                用户交互消息走被动回复通道，不扣除主动推送每日配额；GitHub 仓库事件走主动推送通道。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: WebUI Security -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">WebUI 控制台安全认证</h2>
+            <div class="card-subtitle">面板访问用户名与登录密码设置</div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label>登录用户名</label>
+              <input id="cfg-webui-user" class="form-control" placeholder="admin">
+            </div>
+            <div class="form-group">
+              <label>登录密码 — 留空则面板无验证</label>
+              <input id="cfg-webui-pass" type="password" class="form-control" placeholder="请设置访问密码">
+            </div>
+          </div>
+
+          <div class="callout warning">
+            <div>
+              <strong>安全注意：</strong>
+              WebUI 具有管理机器人密钥及修改 GitHub Token 的全部权限。若端口公网可达，请务必设置高强度密码。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: GitHub Settings -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">GitHub 接口与事件轮询</h2>
+            <div class="card-subtitle">Webhook 回调端口、校验密钥及 API 定时轮询参数</div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label>GitHub Webhook 监听端口</label>
+              <input id="cfg-gh-port" type="number" class="form-control" placeholder="7890">
+              <div class="input-hint">需保证公网或反向代理可访问</div>
+            </div>
+            <div class="form-group">
+              <label>Webhook 签名密钥</label>
+              <input id="cfg-gh-secret" type="password" class="form-control" placeholder="用于校验 GitHub 报文签名">
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="form-group">
+              <label>启用事件定时轮询 (Polling Enabled)</label>
+              <select id="cfg-polling-enabled" class="form-control">
+                <option value="true">启用 — 定时检查仓库动态</option>
+                <option value="false">禁用 — 仅监听 Webhook</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>轮询时间间隔 (秒)</label>
+              <input id="cfg-polling-interval" type="number" class="form-control" min="10" max="600" placeholder="30">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>GitHub 个人访问令牌 (PAT - Personal Access Token)</label>
+            <textarea id="cfg-gh-token" class="form-control" placeholder="ghp_xxxxxxxxxxxx" rows="2"></textarea>
+            <div class="input-hint">支持每行输入一个 Token，系统将自动轮询使用以分担 API 速率限制</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Render Options -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">图片排版与渲染引擎</h2>
+            <div class="card-subtitle">Puppeteer 生成卡片的主题、画质与资源上限</div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="grid-3">
+            <div class="form-group">
+              <label>渲染图片主题</label>
+              <select id="cfg-render-theme" class="form-control">
+                <option value="dark">深色模式</option>
+                <option value="light">浅色模式</option>
+                <option value="github-dark-dimmed">GitHub 暗柔</option>
+                <option value="github-dark-high-contrast">GitHub 高对比</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>图片质量 (1-100)</label>
+              <input id="cfg-render-quality" type="number" class="form-control" min="1" max="100" placeholder="90">
+            </div>
+            <div class="form-group">
+              <label>并发渲染限制</label>
+              <input id="cfg-render-concurrency" type="number" class="form-control" min="1" placeholder="默认 2">
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <div class="form-group">
+              <label>渲染最大高度</label>
+              <input id="cfg-render-maxheight" type="number" class="form-control" min="0" placeholder="0 为不限制">
+            </div>
+            <div class="form-group">
+              <label>队列容量上限</label>
+              <input id="cfg-render-maxqueuesize" type="number" class="form-control" min="0" placeholder="默认 50">
+            </div>
+            <div class="form-group">
+              <label>截图绝对上限</label>
+              <input id="cfg-render-maxscreenshotheight" type="number" class="form-control" min="0" placeholder="默认 30000">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 5: Group Link Card Filters -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">群组链接识别策略</h2>
+            <div class="card-subtitle">控制群消息中 GitHub 链接自动解析为卡片的策略</div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label>链接卡片识别群组模式</label>
+              <select id="cfg-link-card-mode" class="form-control">
+                <option value="all">允许所有群组解析</option>
+                <option value="selected">仅允许白名单群组</option>
+                <option value="none">完全禁用卡片解析</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; justify-content: space-between;">
+                <span>白名单群号列表 (每行一个)</span>
+                <button class="btn sm secondary" onclick="openGroupSelector('cfg-link-card-groups', true)">
+                  从群聊追加
+                </button>
+              </label>
+              <textarea id="cfg-link-card-groups" class="form-control" placeholder="每行输入一个群号" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sticky Save Bar -->
+      <div class="save-sticky-bar">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-weight: 600; font-size: 13.5px;">参数保存与热重载</span>
+          <span class="feedback" id="save-msg-global"></span>
+        </div>
+
+        <button class="btn" onclick="saveGlobalSettings()">
+          保存配置并使之生效
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal 1: Group Selector (display:none when inactive) -->
   <div class="modal-overlay" id="group-modal" onclick="if(event.target === this) closeGroupSelector()">
     <div class="modal">
       <div class="modal-header">
@@ -854,93 +1805,252 @@
         <button class="modal-close" onclick="closeGroupSelector()">&times;</button>
       </div>
       <div class="modal-body">
-        <input type="text" id="group-search" class="form-control" placeholder="搜索群号或名称..." oninput="filterGroups()" style="margin-bottom: 12px;">
-        <div id="group-list-container">加载中...</div>
+        <input type="text" id="group-search" class="form-control" placeholder="输入群号或群名称筛选..." oninput="filterGroups()" style="margin-bottom: 12px;">
+        <div id="group-list-container" style="min-height: 180px; max-height: 360px; overflow-y: auto;">
+          <div class="card-subtitle" style="text-align: center; padding: 20px;">加载中...</div>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- Modal 2: Edit Events Modal (display:none when inactive) -->
   <div class="modal-overlay" id="edit-events-modal" onclick="if(event.target === this) closeEditEventsModal()">
-    <div class="modal">
+    <div class="modal" style="max-width: 540px;">
       <div class="modal-header">
-        <h3>编辑订阅事件</h3>
+        <h3>编辑订阅事件类型</h3>
         <button class="modal-close" onclick="closeEditEventsModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <div style="margin-bottom: 16px;">
-          <strong>仓库:</strong> <span id="edit-repo-name" style="color: var(--accent);"></span>
-          <br>
-          <strong>目标:</strong> <span id="edit-target-name" style="color: var(--accent);"></span>
+        <div style="margin-bottom: 14px; padding: 10px 12px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+          <div style="font-size: 13px; margin-bottom: 4px;"><strong>代码仓库:</strong> <span id="edit-repo-name" style="color: var(--accent); font-weight: 600;"></span></div>
+          <div style="font-size: 13px;"><strong>推送目标:</strong> <span id="edit-target-name" style="font-weight: 500;"></span></div>
         </div>
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; margin-bottom: 8px; font-weight: 500;">选择要订阅的事件类型:</label>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="push" class="event-checkbox" style="cursor: pointer;">
-              <span>Push (代码推送)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="issues" class="event-checkbox" style="cursor: pointer;">
-              <span>Issues (议题)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="pull_request" class="event-checkbox" style="cursor: pointer;">
-              <span>Pull Request (PR)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="release" class="event-checkbox" style="cursor: pointer;">
-              <span>Release (发布)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="star" class="event-checkbox" style="cursor: pointer;">
-              <span>Star (星标)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="fork" class="event-checkbox" style="cursor: pointer;">
-              <span>Fork (分支)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="issue_comment" class="event-checkbox" style="cursor: pointer;">
-              <span>Issue Comment (评论)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="commit_comment" class="event-checkbox" style="cursor: pointer;">
-              <span>Commit Comment (提交评论)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="pull_request_review" class="event-checkbox" style="cursor: pointer;">
-              <span>PR Review (代码审查)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="pull_request_review_comment" class="event-checkbox" style="cursor: pointer;">
-              <span>PR Review Comment (审查评论)</span>
-            </label>
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; border: 1px solid var(--card-border); border-radius: 8px; transition: background 0.2s;">
-              <input type="checkbox" value="edited" class="event-checkbox" style="cursor: pointer;">
-              <span>Edit (Issue/PR/评论修改)</span>
-            </label>
-          </div>
+
+        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+          <button class="btn sm secondary" type="button" onclick="setEventsSelection('all')">全选</button>
+          <button class="btn sm secondary" type="button" onclick="setEventsSelection('core')">核心推荐 (Push/PR/Issue/Release)</button>
+          <button class="btn sm secondary" type="button" onclick="setEventsSelection('none')">清空</button>
         </div>
-        <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--card-border);">
+
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="push" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Push</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="issues" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Issues</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="pull_request" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Pull Request</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="release" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Release</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="star" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Star</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="fork" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Fork</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="issue_comment" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Issue Comment</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="commit_comment" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Commit Comment</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="pull_request_review" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">PR Review</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="pull_request_review_comment" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">PR Review Comment</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 10px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+            <input type="checkbox" value="edited" class="event-checkbox" style="cursor: pointer;">
+            <span style="font-size: 13px;">Edited</span>
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--card-border);">
           <button class="btn secondary" onclick="closeEditEventsModal()">取消</button>
-          <button class="btn" onclick="saveEditedEvents()">保存</button>
+          <button class="btn" onclick="saveEditedEvents()">保存事件</button>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- JavaScript Logic -->
   <script>
     let currentConfig = null;
     let allLogs = [];
+    let authToken = localStorage.getItem("ghqq_auth_token") || "";
 
-    function switchTab(event, tabId) {
-      document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-      document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
-      document.getElementById(tabId).classList.add("active");
-      event.currentTarget.classList.add("active");
-      if (tabId === "tab-logs") fetchLogs();
+    // --- Authed Fetch Wrapper ---
+    async function authedFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      if (authToken) {
+        options.headers["Authorization"] = `Basic ${authToken}`;
+      }
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        showLoginView();
+        throw new Error("Unauthorized");
+      }
+      return res;
     }
 
+    // --- Authentication UI Flow ---
+    function showLoginView(errorMsg = "") {
+      const loginView = document.getElementById("login-view");
+      const appView = document.getElementById("main-app-view");
+      const errorBox = document.getElementById("login-error");
+      
+      if (loginView && appView) {
+        loginView.style.display = "flex";
+        appView.style.display = "none";
+      }
+      if (errorBox) {
+        if (errorMsg) {
+          errorBox.textContent = errorMsg;
+          errorBox.style.display = "block";
+        } else {
+          errorBox.style.display = "none";
+        }
+      }
+    }
+
+    function showAppView(username = "admin") {
+      const loginView = document.getElementById("login-view");
+      const appView = document.getElementById("main-app-view");
+      const authBadge = document.getElementById("auth-user-badge");
+      const userNameEl = document.getElementById("auth-user-name");
+
+      if (loginView && appView) {
+        loginView.style.display = "none";
+        appView.style.display = "block";
+      }
+      if (authBadge && userNameEl) {
+        userNameEl.textContent = username;
+        authBadge.style.display = "inline-flex";
+      }
+    }
+
+    async function checkAuthStatus() {
+      if (window.location.protocol === "file:") {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("view") === "login") {
+          showLoginView();
+          return false;
+        }
+        showAppView("admin (local preview)");
+        return true;
+      }
+      try {
+        const res = await authedFetch("/api/auth/status");
+        const data = await res.json();
+        if (data.authRequired && !data.authenticated) {
+          showLoginView();
+          return false;
+        } else {
+          showAppView(data.username || "admin");
+          return true;
+        }
+      } catch (e) {
+        showLoginView();
+        return false;
+      }
+    }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const usernameInput = document.getElementById("login-username");
+      const passwordInput = document.getElementById("login-password");
+      const username = usernameInput ? usernameInput.value.trim() : "";
+      const password = passwordInput ? passwordInput.value : "";
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+        if (data.success && data.token) {
+          authToken = data.token;
+          localStorage.setItem("ghqq_auth_token", authToken);
+          showAppView(data.username || username);
+          showToast("登录成功", "success");
+          loadData();
+        } else {
+          showLoginView(data.error || "用户名或密码错误");
+        }
+      } catch (err) {
+        showLoginView("登录失败，请检查服务连接");
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await authedFetch("/api/auth/logout", { method: "POST" });
+      } catch (e) {}
+      authToken = "";
+      localStorage.removeItem("ghqq_auth_token");
+      const authBadge = document.getElementById("auth-user-badge");
+      if (authBadge) authBadge.style.display = "none";
+      showLoginView();
+      showToast("已退出登录", "info");
+    }
+
+    // --- Toast System ---
+    function showToast(msg, type = "success") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      
+      let iconColor = "var(--success)";
+      if (type === "error") iconColor = "var(--danger)";
+      else if (type === "info") iconColor = "var(--accent)";
+
+      toast.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${iconColor};flex-shrink:0;"></span><span>${escapeHtml(msg)}</span>`;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transition = "opacity 0.2s ease";
+        setTimeout(() => toast.remove(), 200);
+      }, 3500);
+    }
+
+    // --- Tab Switching ---
+    function switchTab(eventOrTabId, maybeTabId) {
+      let tabId = typeof eventOrTabId === "string" ? eventOrTabId : maybeTabId;
+      if (!tabId) return;
+      if (!tabId.startsWith("tab-")) tabId = "tab-" + tabId;
+
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+      
+      const targetContent = document.getElementById(tabId);
+      if (targetContent) targetContent.classList.add("active");
+      
+      const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+      if (targetBtn) targetBtn.classList.add("active");
+      else if (eventOrTabId && eventOrTabId.currentTarget) eventOrTabId.currentTarget.classList.add("active");
+
+      if (tabId === "tab-logs") {
+        fetchLogs();
+      }
+    }
+
+    // --- Theme Control ---
     function toggleTheme() {
       const html = document.documentElement;
       const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
@@ -952,21 +2062,23 @@
     function updateThemeButton() {
       const theme = document.documentElement.getAttribute("data-theme");
       const textSpan = document.getElementById("theme-text");
+      const textSpanLogin = document.getElementById("theme-text-login");
       const iconDark = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
       const iconLight = `<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>`;
       
       const svg = document.querySelector("#theme-btn svg");
-      if(theme === "dark") {
-        textSpan.textContent = "深色模式";
-        svg.innerHTML = iconDark;
-      } else {
-        textSpan.textContent = "浅色模式";
-        svg.innerHTML = iconLight;
-      }
+      const svgLogin = document.querySelector("#btn-theme-login svg");
+      const label = theme === "dark" ? "深色模式" : "浅色模式";
+      const icon = theme === "dark" ? iconDark : iconLight;
+
+      if (textSpan) textSpan.textContent = label;
+      if (textSpanLogin) textSpanLogin.textContent = label;
+      if (svg) svg.innerHTML = icon;
+      if (svgLogin) svgLogin.innerHTML = icon;
     }
 
     function escapeHtml(input) {
-      return String(input)
+      return String(input ?? "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
@@ -981,20 +2093,24 @@
       return [
         d ? `${d}天` : "",
         h ? `${h}小时` : "",
-        m ? `${m}分钟` : "",
+        m ? `${m}分` : "",
         `${s}秒`,
       ].filter(Boolean).join(" ");
     }
 
     function showMessage(id, text, isError = false) {
       const el = document.getElementById(id);
-      el.textContent = text;
-      el.style.color = isError ? "var(--danger)" : "var(--success)";
-      setTimeout(() => {
-        if (el.textContent === text) el.textContent = "";
-      }, 3500);
+      if (el) {
+        el.textContent = text;
+        el.style.color = isError ? "var(--danger)" : "var(--success)";
+        setTimeout(() => {
+          if (el.textContent === text) el.textContent = "";
+        }, 3500);
+      }
+      showToast(text, isError ? "error" : "success");
     }
 
+    // --- Fixed Protocol Selector Switching (Zero Layout Shift) ---
     let currentProtocol = "onebot";
     function switchProtocol(proto) {
       currentProtocol = proto;
@@ -1008,9 +2124,9 @@
       const secOb = document.getElementById("section-onebot");
       const secMilky = document.getElementById("section-milky");
       const secQQ = document.getElementById("section-qqbot");
-      if (secOb) secOb.style.display = proto === "onebot" ? "grid" : "none";
-      if (secMilky) secMilky.style.display = proto === "milky" ? "grid" : "none";
-      if (secQQ) secQQ.style.display = proto === "qqbot" ? "grid" : "none";
+      if (secOb) secOb.style.display = proto === "onebot" ? "block" : "none";
+      if (secMilky) secMilky.style.display = proto === "milky" ? "block" : "none";
+      if (secQQ) secQQ.style.display = proto === "qqbot" ? "block" : "none";
 
       if (proto === "qqbot") {
         updateQQBotUrlPreview();
@@ -1037,7 +2153,7 @@
       } else {
         if (urlBox) urlBox.style.display = "none";
         if (hint) {
-          hint.textContent = "WebSocket 模式：无需公网 IP 或独立域名，由本地客户端长连接至 QQ 开放平台网关。";
+          hint.textContent = "WebSocket 模式：无需公网 IP 或独立域名，本地客户端长连接至 QQ 开放平台网关。";
         }
       }
     }
@@ -1055,20 +2171,21 @@
       const previewInput = document.getElementById("cfg-qqbot-computed-url");
       if (previewInput && previewInput.value) {
         navigator.clipboard.writeText(previewInput.value).then(() => {
-          alert("已复制 Webhook 回调地址到剪贴板！\n" + previewInput.value);
+          showToast("已复制 Webhook 回调地址", "success");
         }).catch(() => {
           previewInput.select();
           document.execCommand("copy");
-          alert("已复制 Webhook 回调地址到剪贴板！\n" + previewInput.value);
+          showToast("已复制 Webhook 回调地址", "success");
         });
       }
     }
 
+    // --- Data Loading ---
     async function loadData() {
       try {
         const [configRes, statusRes] = await Promise.all([
-          fetch("/api/config"),
-          fetch("/api/status"),
+          authedFetch("/api/config"),
+          authedFetch("/api/status"),
         ]);
         const configData = await configRes.json();
         const statusData = await statusRes.json();
@@ -1076,13 +2193,31 @@
 
         updateStatus(statusData);
         renderTable();
+        renderOverviewSubs();
 
-        if (!window.initialConfigLoaded) {
+        if (currentConfig) {
+          const ghPortEl = document.getElementById("overview-webhook-port");
+          if (ghPortEl) ghPortEl.textContent = `端口 ${currentConfig.github?.webhook_port || 7890}`;
+          
+          const pollerEl = document.getElementById("overview-polling-state");
+          if (pollerEl) {
+            const enabled = currentConfig.github?.polling_enabled !== false;
+            pollerEl.textContent = enabled ? `已启用 (${currentConfig.github?.polling_interval || 30}s)` : "已停用";
+          }
+
+          const renderEl = document.getElementById("overview-render-state");
+          if (renderEl) {
+            renderEl.textContent = `${currentConfig.render?.theme || "dark"} / 质量 ${currentConfig.render?.image_quality ?? 90}`;
+          }
+        }
+
+        if (!window.initialConfigLoaded && currentConfig) {
           switchProtocol(currentConfig.protocol || "onebot");
           document.getElementById("cfg-ob-ws").value = currentConfig.onebot?.ws_url || "";
           document.getElementById("cfg-ob-token").value = currentConfig.onebot?.access_token || "";
           document.getElementById("cfg-ob-prefix").value = currentConfig.onebot?.command_prefix || "/";
           document.getElementById("cfg-ob-masters").value = (currentConfig.onebot?.masters || []).join("\n");
+          
           document.getElementById("cfg-milky-endpoint").value = currentConfig.milky?.endpoint || "http://127.0.0.1:3000";
           document.getElementById("cfg-milky-token").value = currentConfig.milky?.access_token || "";
           document.getElementById("cfg-milky-prefix").value = currentConfig.milky?.command_prefix || "/";
@@ -1097,21 +2232,26 @@
           document.getElementById("cfg-qqbot-prefix").value = qq.command_prefix || "/";
           document.getElementById("cfg-qqbot-masters").value = (qq.masters || []).join("\n");
           updateQQBotUrlPreview();
+
           document.getElementById("cfg-webui-user").value = currentConfig.webui?.username || "admin";
           document.getElementById("cfg-webui-pass").value = currentConfig.webui?.password || "";
+          
           document.getElementById("cfg-gh-port").value = currentConfig.github.webhook_port || 7890;
           document.getElementById("cfg-gh-secret").value = currentConfig.github.webhook_secret || "";
           document.getElementById("cfg-gh-token").value = (currentConfig.github.access_tokens && currentConfig.github.access_tokens.length > 0) ? currentConfig.github.access_tokens.join("\n") : (currentConfig.github.access_token || "");
           document.getElementById("cfg-polling-enabled").value = currentConfig.github.polling_enabled !== false ? "true" : "false";
           document.getElementById("cfg-polling-interval").value = currentConfig.github.polling_interval || 60;
+          
           document.getElementById("cfg-render-quality").value = currentConfig.render?.image_quality ?? 90;
           document.getElementById("cfg-render-maxheight").value = currentConfig.render?.max_height ?? 8000;
           document.getElementById("cfg-render-concurrency").value = currentConfig.render?.concurrency ?? 2;
           document.getElementById("cfg-render-maxqueuesize").value = currentConfig.render?.max_queue_size ?? 50;
           document.getElementById("cfg-render-maxscreenshotheight").value = currentConfig.render?.max_screenshot_height ?? 30000;
           document.getElementById("cfg-render-theme").value = currentConfig.render?.theme || "dark";
+          
           document.getElementById("cfg-link-card-mode").value = currentConfig.github.link_card_group_mode || "all";
           document.getElementById("cfg-link-card-groups").value = (currentConfig.github.link_card_enabled_groups || []).join("\n");
+          
           window.initialConfigLoaded = true;
         }
 
@@ -1119,9 +2259,11 @@
           fetchLogs();
         }
       } catch (error) {
-        document.getElementById("service-status").textContent = "无法连接至后端服务";
-        document.getElementById("service-status").style.color = "var(--danger)";
-        document.getElementById("dot").className = "dot offline";
+        if (error.message !== "Unauthorized") {
+          document.getElementById("service-status").textContent = "无法连接后端";
+          document.getElementById("service-status").style.color = "var(--danger)";
+          document.getElementById("dot").className = "dot offline";
+        }
       }
     }
 
@@ -1132,9 +2274,9 @@
 
       const identity = document.getElementById("bot-identity");
       if (statusData.botInfo) {
-        identity.innerHTML = `${escapeHtml(statusData.botInfo.nickname)} <span class="muted" style="font-size: 14px;">(${statusData.botInfo.user_id})</span>`;
+        identity.innerHTML = `${escapeHtml(statusData.botInfo.nickname)} <span style="font-size: 12px; color: var(--text-dim); font-family: monospace;">(${escapeHtml(statusData.botInfo.user_id)})</span>`;
       } else {
-        identity.textContent = "等待数据中...";
+        identity.textContent = "等待连接中...";
       }
 
       const proto = statusData.protocol || "onebot";
@@ -1144,7 +2286,7 @@
           protoBadge.textContent = "Milky";
         } else if (proto === "qqbot") {
           const modeLabel = statusData.qqbotMode === "webhook" ? "Webhook" : "WS";
-          protoBadge.textContent = `QQBot (${modeLabel})`;
+          protoBadge.textContent = `QQ (${modeLabel})`;
         } else {
           protoBadge.textContent = "OneBot v11";
         }
@@ -1159,6 +2301,7 @@
       if (!st) {
         dot.className = "dot";
         text.textContent = "运行中 (Running)";
+        text.style.color = "var(--text)";
         reconnect.style.display = "none";
         stop.style.display = "none";
         return;
@@ -1172,7 +2315,7 @@
         stop.style.display = "none";
       } else if (st.stopped) {
         dot.className = "dot offline";
-        text.textContent = `已停止请求重试 (${st.attempts}/${st.maxAttempts})`;
+        text.textContent = `重试已停止 (${st.attempts}/${st.maxAttempts})`;
         text.style.color = "var(--danger)";
         reconnect.style.display = "inline-flex";
         stop.style.display = "none";
@@ -1186,14 +2329,16 @@
     }
 
     async function triggerAction(action) {
-      await fetch(`/api/${action}`, { method: "POST" });
+      await authedFetch(`/api/${action}`, { method: "POST" });
+      showToast(`已触发 ${action} 操作`, "info");
       loadData();
     }
 
+    // --- Logs Handling ---
     async function fetchLogs() {
       const level = document.getElementById("log-level").value;
       try {
-        const res = await fetch(`/api/logs?level=${level}`);
+        const res = await authedFetch(`/api/logs?level=${level}`);
         allLogs = await res.json();
         updateLogSourceOptions();
         filterLogsDOM();
@@ -1209,7 +2354,8 @@
           .filter(Boolean)
           .map(match => match[1])
       )].sort();
-      select.innerHTML = `<option value="ALL">所有来源 (All sources)</option>${sources.map(source => `<option value="${escapeHtml(source)}">${escapeHtml(source)}</option>`).join("")}`;
+      
+      select.innerHTML = `<option value="ALL">所有来源模块 (All)</option>${sources.map(source => `<option value="${escapeHtml(source)}">${escapeHtml(source)}</option>`).join("")}`;
       select.value = sources.includes(current) ? current : "ALL";
     }
 
@@ -1217,32 +2363,49 @@
       const search = document.getElementById("log-search").value.toLowerCase();
       const source = document.getElementById("log-source").value;
       const terminal = document.getElementById("terminal");
-      const stickBottom = terminal.scrollHeight - terminal.clientHeight <= terminal.scrollTop + 24;
+      const autoscroll = document.getElementById("log-autoscroll").checked;
+      const countBadge = document.getElementById("log-count-badge");
 
       let filtered = allLogs.slice();
       if (source !== "ALL") filtered = filtered.filter(log => String(log.message || "").includes(source));
       if (search) filtered = filtered.filter(log => String(log.message || "").toLowerCase().includes(search));
 
+      if (countBadge) countBadge.textContent = `${filtered.length} 条记录`;
+
       if (filtered.length === 0) {
-        terminal.innerHTML = `<div class="muted">未找到日志数据</div>`;
+        terminal.innerHTML = `<div class="card-subtitle" style="padding: 12px;">未匹配到日志记录</div>`;
         return;
       }
 
       terminal.innerHTML = filtered.map(log => `
         <div class="log-line">
           <span class="log-time">[${escapeHtml(log.timestamp)}]</span>
-          <span class="log-${escapeHtml(log.level)}">[${escapeHtml(log.level)}]</span>
-          ${escapeHtml(log.message)}
+          <span class="log-level-tag ${escapeHtml(log.level)}">${escapeHtml(log.level)}</span>
+          <span class="log-msg">${escapeHtml(log.message)}</span>
         </div>
       `).join("");
 
-      if (stickBottom) terminal.scrollTop = terminal.scrollHeight;
+      if (autoscroll) {
+        terminal.scrollTop = terminal.scrollHeight;
+      }
     }
 
+    function copyAllLogs() {
+      const text = allLogs.map(l => `[${l.timestamp}] [${l.level}] ${l.message}`).join("\n");
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("已复制全部日志到剪贴板", "success");
+      }).catch(() => {
+        showToast("复制失败", "error");
+      });
+    }
+
+    // --- Subscriptions Rendering ---
     function renderTable() {
       const tbody = document.querySelector("#subs-table tbody");
+      if (!tbody) return;
+
       if (!currentConfig || !currentConfig.subscriptions || currentConfig.subscriptions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align: center; padding: 24px;">暂无订阅数据，请在下方添加</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="3" class="card-subtitle" style="text-align: center; padding: 24px;">暂无任何仓库订阅数据</td></tr>`;
         return;
       }
 
@@ -1251,45 +2414,91 @@
           const targetEvents = target.events || [];
           const eventsHtml = targetEvents.length > 0
             ? targetEvents.map(event => `<span class="tag">${escapeHtml(event)}</span>`).join("")
-            : '<span class="muted">无事件配置</span>';
+            : '<span class="card-subtitle" style="font-size:11px;">无事件</span>';
+          
+          const isGroup = target.type === "group";
           return `
-            <div class="target-tag" style="display: block; margin-bottom: 8px; padding: 8px; border: 1px solid var(--card-border); border-radius: 10px;">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                <strong>${escapeHtml(target.type)}: ${escapeHtml(target.id)}</strong>
-                <a href="#" class="target-remove" onclick="removeTarget(${repoIdx}, ${targetIdx}); return false;">x</a>
+            <div class="target-item">
+              <div class="target-item-top">
+                <div class="target-badge">
+                  <span class="target-type-pill ${isGroup ? 'group' : 'private'}">${isGroup ? '群聊' : '私聊'}</span>
+                  <span style="font-family: monospace;">${escapeHtml(target.id)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <button class="btn sm secondary" onclick="openEditEventsModal(${repoIdx}, ${targetIdx})">编辑事件</button>
+                  <button class="btn sm danger" onclick="removeTarget(${repoIdx}, ${targetIdx})">移除</button>
+                </div>
               </div>
-              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div class="events-cloud">
                 ${eventsHtml}
-                <button class="btn secondary" style="padding: 4px 10px; font-size: 12px;" onclick="openEditEventsModal(${repoIdx}, ${targetIdx})">编辑事件</button>
               </div>
             </div>
           `;
         }).join("");
+
         return `
-          <tr>
-            <td style="font-weight: 500;">${escapeHtml(sub.repo)}</td>
-            <td>
-              <span class="muted">每个目标独立配置</span>
+          <tr style="border-bottom: 1px solid var(--card-border);">
+            <td style="padding: 12px 14px; vertical-align: top;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <a href="https://github.com/${encodeURIComponent(sub.repo)}" target="_blank" rel="noopener noreferrer" style="font-weight: 600; color: var(--accent); text-decoration: none; font-size: 14px;">
+                  ${escapeHtml(sub.repo)}
+                </a>
+              </div>
+              <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${(sub.targets || []).length} 个目标</div>
             </td>
-            <td>${targetsHtml || '<span class="muted">无目标配置</span>'}</td>
-            <td style="text-align:right"><button class="btn danger" style="padding: 8px 14px;" onclick="removeRepo(${repoIdx})">移除</button></td>
+            <td style="padding: 12px 14px; vertical-align: top;">
+              <div class="target-list">
+                ${targetsHtml || '<span class="card-subtitle">未配置推送目标</span>'}
+              </div>
+            </td>
+            <td style="text-align:right; padding: 12px 14px; vertical-align: top;">
+              <button class="btn sm danger" onclick="removeRepo(${repoIdx})">删除</button>
+            </td>
           </tr>
         `;
       }).join("");
     }
 
+    function renderOverviewSubs() {
+      const container = document.getElementById("overview-subs-preview");
+      if (!container) return;
+
+      if (!currentConfig || !currentConfig.subscriptions || currentConfig.subscriptions.length === 0) {
+        container.innerHTML = `<div class="card-subtitle" style="text-align: center; padding: 16px;">暂无订阅，可在订阅管理页面添加</div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px;">
+          ${currentConfig.subscriptions.map(sub => `
+            <div style="padding: 10px 12px; border: 1px solid var(--card-border); border-radius: 6px; background: var(--bg);">
+              <div style="font-weight: 600; font-size: 13.5px; margin-bottom: 4px; color: var(--text);">
+                ${escapeHtml(sub.repo)}
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 4px; flex-wrap: wrap;">
+                ${(sub.targets || []).map(t => `<span class="tag">${escapeHtml(t.type)}: ${escapeHtml(t.id)}</span>`).join("")}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    // --- Push Config Update ---
     async function pushConfigUpdate(elId = "save-msg-global") {
       try {
-        const res = await fetch("/api/config", {
+        const res = await authedFetch("/api/config", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(currentConfig),
         });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || "未知异常");
-        let hint = "保存成功，已热更新";
-        if (data.restartRequired?.polling) hint += "；轮询设置已应用";
-        if (data.restartRequired?.port) hint += "；监听端口已切换，请用新端口重新访问";
+        
+        let hint = "配置已保存并热重载";
+        if (data.restartRequired?.polling) hint += "；轮询服务已刷新";
+        if (data.restartRequired?.port) hint += "；监听端口已切换";
+        
         showMessage(elId, hint);
         loadData();
       } catch (error) {
@@ -1297,16 +2506,20 @@
       }
     }
 
+    // --- Save Global Settings ---
     function saveGlobalSettings() {
       if (!currentConfig) return;
       currentConfig.protocol = currentProtocol;
+      
+      // OneBot
       currentConfig.onebot = currentConfig.onebot || {};
-      currentConfig.onebot.ws_url = document.getElementById("cfg-ob-ws").value;
+      currentConfig.onebot.ws_url = document.getElementById("cfg-ob-ws").value.trim();
       currentConfig.onebot.access_token = document.getElementById("cfg-ob-token").value;
       currentConfig.onebot.command_prefix = document.getElementById("cfg-ob-prefix").value || "/";
       const rawMasters = document.getElementById("cfg-ob-masters").value;
       currentConfig.onebot.masters = rawMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
 
+      // Milky
       currentConfig.milky = currentConfig.milky || {};
       currentConfig.milky.endpoint = document.getElementById("cfg-milky-endpoint").value.trim() || "http://127.0.0.1:3000";
       currentConfig.milky.access_token = document.getElementById("cfg-milky-token").value;
@@ -1314,6 +2527,7 @@
       const rawMilkyMasters = document.getElementById("cfg-milky-masters").value;
       currentConfig.milky.masters = rawMilkyMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
 
+      // QQBot
       currentConfig.qqbot = currentConfig.qqbot || {};
       currentConfig.qqbot.mode = currentQQBotMode;
       currentConfig.qqbot.app_id = document.getElementById("cfg-qqbot-appid").value.trim();
@@ -1323,14 +2537,19 @@
       currentConfig.qqbot.command_prefix = document.getElementById("cfg-qqbot-prefix").value || "/";
       const rawQQMasters = document.getElementById("cfg-qqbot-masters").value;
       currentConfig.qqbot.masters = rawQQMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
+
+      // WebUI
       currentConfig.webui = currentConfig.webui || {};
       currentConfig.webui.username = document.getElementById("cfg-webui-user").value.trim() || "admin";
       currentConfig.webui.password = document.getElementById("cfg-webui-pass").value;
+
+      // GitHub
+      currentConfig.github = currentConfig.github || {};
       currentConfig.github.webhook_port = parseInt(document.getElementById("cfg-gh-port").value, 10) || 7890;
       currentConfig.github.webhook_secret = document.getElementById("cfg-gh-secret").value;
       const rawTokens = document.getElementById("cfg-gh-token").value;
       currentConfig.github.access_tokens = rawTokens.split(/\r?\n/).map(t => t.trim()).filter(Boolean);
-      currentConfig.github.access_token = undefined; // clear legacy field
+      currentConfig.github.access_token = undefined;
       currentConfig.github.polling_enabled = document.getElementById("cfg-polling-enabled").value === "true";
 
       const pollInt = parseInt(document.getElementById("cfg-polling-interval").value, 10);
@@ -1341,6 +2560,7 @@
         .map(v => v.trim())
         .filter(Boolean);
 
+      // Render
       currentConfig.render = currentConfig.render || {};
       currentConfig.render.image_quality = parseInt(document.getElementById("cfg-render-quality").value, 10) || 90;
       const maxHeight = parseInt(document.getElementById("cfg-render-maxheight").value, 10);
@@ -1356,6 +2576,7 @@
       pushConfigUpdate();
     }
 
+    // --- Subscription Handlers ---
     function removeTarget(repoIndex, targetIndex) {
       if (!confirm("确定移除该推送目标吗？")) return;
       currentConfig.subscriptions[repoIndex].targets.splice(targetIndex, 1);
@@ -1366,7 +2587,7 @@
     }
 
     function removeRepo(repoIndex) {
-      if (!confirm("确定移除整个仓库的订阅配置吗？")) return;
+      if (!confirm("确定移除该仓库的全部订阅配置吗？")) return;
       currentConfig.subscriptions.splice(repoIndex, 1);
       pushConfigUpdate();
     }
@@ -1375,10 +2596,12 @@
       const repo = document.getElementById("add-repo").value.trim();
       const type = document.getElementById("add-type").value;
       const id = document.getElementById("add-id").value.trim();
+      
       if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo) || !id) {
-        alert("格式错误：代码仓库必须是 owner/repo 的形式（仅允许字母、数字、-、_、.），并且目标 ID 无法留空。");
+        showToast("格式错误：代码仓库需为 owner/repo，且目标 ID 不能为空。", "error");
         return;
       }
+
       let sub = currentConfig.subscriptions.find(item => item.repo === repo);
       if (!sub) {
         sub = {
@@ -1387,6 +2610,7 @@
         };
         currentConfig.subscriptions.push(sub);
       }
+
       if (!sub.targets.some(target => target.type === type && target.id === id)) {
         sub.targets.push({
           type,
@@ -1405,19 +2629,17 @@
             "edited",
           ],
         });
+        showToast(`已添加订阅：${repo} -> ${type}:${id}`);
+      } else {
+        showToast("该推送目标已存在于此代码仓库", "info");
       }
+
       document.getElementById("add-repo").value = "";
       document.getElementById("add-id").value = "";
       pushConfigUpdate();
     }
 
-    const storedTheme = localStorage.getItem("ghqq_theme") || "dark";
-    document.documentElement.setAttribute("data-theme", storedTheme);
-    updateThemeButton();
-    loadData();
-    setInterval(loadData, 10000);
-
-    // --- Modal Group Selector ---
+    // --- Group Selector Modal ---
     let cachedGroups = [];
     let groupSelectTargetId = "";
     let groupSelectAppendMode = false;
@@ -1429,14 +2651,14 @@
       document.getElementById("group-search").value = "";
       
       const container = document.getElementById("group-list-container");
-      container.innerHTML = "加载中...";
+      container.innerHTML = `<div class="card-subtitle" style="text-align: center; padding: 20px;">正在请求群列表...</div>`;
       
       try {
-        const res = await fetch("/api/groups");
+        const res = await authedFetch("/api/groups");
         cachedGroups = await res.json();
         filterGroups();
       } catch (e) {
-        container.innerHTML = "加载失败，请确保 OneBot 机器人已连接。";
+        container.innerHTML = `<div class="card-subtitle" style="color:var(--danger); text-align:center; padding: 20px;">获取失败，请确认机器人已连接。</div>`;
       }
     }
 
@@ -1449,7 +2671,7 @@
       const container = document.getElementById("group-list-container");
       
       if (!cachedGroups || cachedGroups.length === 0) {
-        container.innerHTML = "未获取到群列表，可能机器人未加群或不支持该 API。";
+        container.innerHTML = `<div class="card-subtitle" style="text-align: center; padding: 20px;">未获取到群列表</div>`;
         return;
       }
       
@@ -1462,7 +2684,7 @@
           </div>`;
         }
       }
-      container.innerHTML = html || `<div class="muted">无匹配结果</div>`;
+      container.innerHTML = html || `<div class="card-subtitle" style="text-align: center; padding: 16px;">无匹配结果</div>`;
     }
 
     function selectGroup(groupId) {
@@ -1470,16 +2692,13 @@
       if (el) {
         if (groupSelectAppendMode) {
           const currentVal = el.value.trim();
-          if (currentVal) {
-            el.value = currentVal + "\n" + groupId;
-          } else {
-            el.value = groupId;
-          }
+          el.value = currentVal ? `${currentVal}\n${groupId}` : groupId;
         } else {
           el.value = groupId;
         }
       }
       closeGroupSelector();
+      showToast(`已选取群号：${groupId}`);
     }
 
     // --- Edit Events Modal ---
@@ -1494,7 +2713,6 @@
       document.getElementById("edit-repo-name").textContent = sub.repo;
       document.getElementById("edit-target-name").textContent = `${target.type}: ${target.id}`;
       
-      // Reset all checkboxes
       document.querySelectorAll(".event-checkbox").forEach(cb => {
         cb.checked = (target.events || []).includes(cb.value);
       });
@@ -1508,6 +2726,16 @@
       editingTargetIndex = -1;
     }
 
+    function setEventsSelection(mode) {
+      const checkboxes = document.querySelectorAll(".event-checkbox");
+      const coreEvents = ["push", "pull_request", "issues", "release"];
+      checkboxes.forEach(cb => {
+        if (mode === "all") cb.checked = true;
+        else if (mode === "none") cb.checked = false;
+        else if (mode === "core") cb.checked = coreEvents.includes(cb.value);
+      });
+    }
+
     function saveEditedEvents() {
       if (editingRepoIndex < 0 || editingTargetIndex < 0) return;
       
@@ -1515,7 +2743,7 @@
         .map(cb => cb.value);
       
       if (selectedEvents.length === 0) {
-        alert("请至少选择一个事件类型");
+        showToast("请至少选择一个事件类型", "error");
         return;
       }
       
@@ -1523,6 +2751,19 @@
       closeEditEventsModal();
       pushConfigUpdate();
     }
+
+    // --- Initialization ---
+    const storedTheme = localStorage.getItem("ghqq_theme") || "dark";
+    document.documentElement.setAttribute("data-theme", storedTheme);
+    updateThemeButton();
+
+    (async function init() {
+      const authed = await checkAuthStatus();
+      if (authed) {
+        loadData();
+        setInterval(loadData, 10000);
+      }
+    })();
   </script>
 </body>
 </html>
