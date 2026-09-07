@@ -16,6 +16,17 @@ export interface MilkyConfig {
   masters?: string[]; // Master QQ list
 }
 
+export interface QQBotConfig {
+  mode: "ws" | "webhook"; // "ws" = Gateway WebSocket | "webhook" = HTTP callback
+  app_id: string; // QQ Open Platform AppID
+  app_secret: string; // QQ Open Platform AppSecret (for access token and Ed25519 signature)
+  sandbox?: boolean; // Whether to use sandbox environment (sandbox.api.sgroup.qq.com)
+  webhook_path?: string; // Webhook path, default "/qqbot/webhook"
+  intents?: number; // WS intents bitmask, default (1 << 25)
+  command_prefix: string; // e.g. "/"
+  masters?: string[]; // Master OpenID list
+}
+
 export interface GitHubConfig {
   webhook_port: number;
   webhook_secret?: string;
@@ -59,9 +70,10 @@ export interface WebUIConfig {
 }
 
 export interface AppConfig {
-  protocol?: "onebot" | "milky";
+  protocol?: "onebot" | "milky" | "qqbot";
   onebot: OneBotConfig;
   milky?: MilkyConfig;
+  qqbot?: QQBotConfig;
   github: GitHubConfig;
   render?: RenderConfig;
   subscriptions: Subscription[];
@@ -103,6 +115,36 @@ export function loadConfig(): AppConfig {
   }
   if (!config.milky.masters) {
     config.milky.masters = [];
+  }
+  if (!config.qqbot) {
+    config.qqbot = {
+      mode: "ws",
+      app_id: "",
+      app_secret: "",
+      sandbox: false,
+      webhook_path: "/qqbot/webhook",
+      intents: 1 << 25,
+      command_prefix: "/",
+      masters: [],
+    };
+  }
+  if (!config.qqbot.mode) {
+    config.qqbot.mode = "ws";
+  }
+  if (config.qqbot.sandbox === undefined) {
+    config.qqbot.sandbox = false;
+  }
+  if (!config.qqbot.webhook_path) {
+    config.qqbot.webhook_path = "/qqbot/webhook";
+  }
+  if (config.qqbot.intents === undefined) {
+    config.qqbot.intents = 1 << 25;
+  }
+  if (!config.qqbot.command_prefix) {
+    config.qqbot.command_prefix = "/";
+  }
+  if (!config.qqbot.masters) {
+    config.qqbot.masters = [];
   }
   if (!config.onebot) {
     config.onebot = {

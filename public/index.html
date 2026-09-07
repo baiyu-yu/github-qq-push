@@ -625,6 +625,9 @@
             <div class="protocol-opt" id="proto-opt-milky" onclick="switchProtocol('milky')">
               <span>Milky (HTTP + WebSocket)</span>
             </div>
+            <div class="protocol-opt" id="proto-opt-qqbot" onclick="switchProtocol('qqbot')">
+              <span>QQ 机器人开放平台 (API v2)</span>
+            </div>
           </div>
         </div>
 
@@ -664,6 +667,74 @@
           <div class="form-group" style="grid-column: 1 / -1;">
             <label>Master QQ 列表 (每行一个 QQ 号，具有最高管理权限，可跨越群主/管理限制)</label>
             <textarea id="cfg-milky-masters" class="form-control" placeholder="12345678&#10;87654321" rows="2"></textarea>
+          </div>
+        </div>
+
+        <div id="section-qqbot" class="form-grid" style="display:none;">
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label style="display:block; margin-bottom: 6px; font-weight: 600;">接入模式 (Connection Mode)</label>
+            <div class="protocol-selector" style="max-width: 520px; margin-bottom: 8px;">
+              <div class="protocol-opt active" id="qqbot-mode-opt-ws" onclick="switchQQBotMode('ws')">
+                <span>WebSocket (网关长连接)</span>
+              </div>
+              <div class="protocol-opt" id="qqbot-mode-opt-webhook" onclick="switchQQBotMode('webhook')">
+                <span>Webhook (HTTP 回调推送)</span>
+              </div>
+            </div>
+            <div id="qqbot-mode-hint" class="muted" style="font-size: 13px; margin-top: 4px;">
+              WebSocket 模式：无需公网 IP 或独立域名，由本地客户端长连接至 QQ 开放平台网关。
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>AppID (机器人 ID) <span style="color:var(--danger)">*</span></label>
+            <input id="cfg-qqbot-appid" class="form-control" placeholder="开放平台管理端的 AppID (如 102030405)">
+          </div>
+          <div class="form-group">
+            <label>AppSecret (机器人密钥) <span style="color:var(--danger)">*</span></label>
+            <input id="cfg-qqbot-secret" type="password" class="form-control" placeholder="开放平台管理端的 AppSecret">
+          </div>
+
+          <div class="form-group" id="qqbot-webhook-url-box" style="grid-column: 1 / -1; display: none;">
+            <label>Webhook 回调地址 (Webhook URL)</label>
+            <div style="display: flex; gap: 8px;">
+              <input id="cfg-qqbot-computed-url" class="form-control" readonly style="background: rgba(0,0,0,0.2); font-family: monospace;">
+              <button class="btn secondary" style="white-space: nowrap;" onclick="copyQQBotWebhookUrl()">复制完整地址</button>
+            </div>
+            <div class="muted" style="font-size: 12px; margin-top: 4px;">
+              请将此地址配置到 QQ 开放平台管理端的「回调地址」中。系统内置 Ed25519 签名算法，在管理端提交保存时可自动完成 OpCode 13 地址安全验证。
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Webhook 接收路径 (Webhook Path)</label>
+            <input id="cfg-qqbot-path" class="form-control" placeholder="/qqbot/webhook" oninput="updateQQBotUrlPreview()">
+          </div>
+
+          <div class="form-group">
+            <label>运行环境 (Environment)</label>
+            <select id="cfg-qqbot-sandbox" class="form-control">
+              <option value="false">正式环境 (Production)</option>
+              <option value="true">沙箱环境 (Sandbox 测试群)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>指令前缀 (Command Prefix)</label>
+            <input id="cfg-qqbot-prefix" class="form-control" placeholder="/">
+          </div>
+
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Master OpenID 列表 (每行一个用户 OpenID，具有最高管理权限)</label>
+            <textarea id="cfg-qqbot-masters" class="form-control" placeholder="用户 OpenID (例如 48BC3990A1...)" rows="2"></textarea>
+          </div>
+
+          <div style="grid-column: 1 / -1; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; padding: 12px 16px; margin-top: 6px;">
+            <div style="font-weight: 600; color: #60a5fa; margin-bottom: 6px; font-size: 13px;">💡 QQ 机器人官方接口特性说明</div>
+            <div style="font-size: 12px; line-height: 1.6; color: var(--text-muted);">
+              • <b>主动消息 vs 被动消息</b>：用户发送的指令（如 <code>/status</code>、<code>/help</code>、<code>#123</code>）及代码卡片解析会自动附带 <code>msg_id</code> 与防重自增序号 <code>msg_seq</code>，走<b>被动消息</b>下发（图片采用二段式上传），<b>完全不占用机器人的主动消息每日限额</b>；GitHub 仓库事件（Push、PR、Issue 等）则作为<b>主动消息</b>推送，受平台每日频控限制（如已认证机器人每个群每日上限 1000 条）。<br>
+              • <b>群消息全量模式</b>：若在 QQ 开放平台管理端申请并开启了「接收所有消息」功能，系统将自动支持全量模式（<code>GROUP_MESSAGE_CREATE</code>），用户在群里直接发送 <code>/status</code>、<code>#123</code> 或 GitHub 链接即可响应，无需 @ 机器人；若未开启全量模式，群内需 @ 机器人触发（<code>GROUP_AT_MESSAGE_CREATE</code>）。
+            </div>
           </div>
         </div>
 
@@ -927,15 +998,70 @@
     let currentProtocol = "onebot";
     function switchProtocol(proto) {
       currentProtocol = proto;
-      const isMilky = proto === "milky";
       const optOb = document.getElementById("proto-opt-onebot");
       const optMilky = document.getElementById("proto-opt-milky");
-      if (optOb) optOb.classList.toggle("active", !isMilky);
-      if (optMilky) optMilky.classList.toggle("active", isMilky);
+      const optQQ = document.getElementById("proto-opt-qqbot");
+      if (optOb) optOb.classList.toggle("active", proto === "onebot");
+      if (optMilky) optMilky.classList.toggle("active", proto === "milky");
+      if (optQQ) optQQ.classList.toggle("active", proto === "qqbot");
+
       const secOb = document.getElementById("section-onebot");
       const secMilky = document.getElementById("section-milky");
-      if (secOb) secOb.style.display = isMilky ? "none" : "grid";
-      if (secMilky) secMilky.style.display = isMilky ? "grid" : "none";
+      const secQQ = document.getElementById("section-qqbot");
+      if (secOb) secOb.style.display = proto === "onebot" ? "grid" : "none";
+      if (secMilky) secMilky.style.display = proto === "milky" ? "grid" : "none";
+      if (secQQ) secQQ.style.display = proto === "qqbot" ? "grid" : "none";
+
+      if (proto === "qqbot") {
+        updateQQBotUrlPreview();
+      }
+    }
+
+    let currentQQBotMode = "ws";
+    function switchQQBotMode(mode) {
+      currentQQBotMode = mode;
+      const optWs = document.getElementById("qqbot-mode-opt-ws");
+      const optWh = document.getElementById("qqbot-mode-opt-webhook");
+      const hint = document.getElementById("qqbot-mode-hint");
+      const urlBox = document.getElementById("qqbot-webhook-url-box");
+
+      if (optWs) optWs.classList.toggle("active", mode === "ws");
+      if (optWh) optWh.classList.toggle("active", mode === "webhook");
+
+      if (mode === "webhook") {
+        if (urlBox) urlBox.style.display = "block";
+        if (hint) {
+          hint.textContent = "Webhook 模式：通过腾讯开放平台主动 POST 回调推送事件，支持高并发，需具备公网 IP 或域名并支持 HTTPS。";
+        }
+        updateQQBotUrlPreview();
+      } else {
+        if (urlBox) urlBox.style.display = "none";
+        if (hint) {
+          hint.textContent = "WebSocket 模式：无需公网 IP 或独立域名，由本地客户端长连接至 QQ 开放平台网关。";
+        }
+      }
+    }
+
+    function updateQQBotUrlPreview() {
+      const pathInput = document.getElementById("cfg-qqbot-path");
+      const previewInput = document.getElementById("cfg-qqbot-computed-url");
+      if (!previewInput) return;
+      const path = (pathInput?.value || "/qqbot/webhook").trim();
+      const origin = window.location.origin;
+      previewInput.value = `${origin}${path.startsWith("/") ? path : "/" + path}`;
+    }
+
+    function copyQQBotWebhookUrl() {
+      const previewInput = document.getElementById("cfg-qqbot-computed-url");
+      if (previewInput && previewInput.value) {
+        navigator.clipboard.writeText(previewInput.value).then(() => {
+          alert("已复制 Webhook 回调地址到剪贴板！\n" + previewInput.value);
+        }).catch(() => {
+          previewInput.select();
+          document.execCommand("copy");
+          alert("已复制 Webhook 回调地址到剪贴板！\n" + previewInput.value);
+        });
+      }
     }
 
     async function loadData() {
@@ -961,6 +1087,16 @@
           document.getElementById("cfg-milky-token").value = currentConfig.milky?.access_token || "";
           document.getElementById("cfg-milky-prefix").value = currentConfig.milky?.command_prefix || "/";
           document.getElementById("cfg-milky-masters").value = (currentConfig.milky?.masters || []).join("\n");
+
+          const qq = currentConfig.qqbot || {};
+          switchQQBotMode(qq.mode || "ws");
+          document.getElementById("cfg-qqbot-appid").value = qq.app_id || "";
+          document.getElementById("cfg-qqbot-secret").value = qq.app_secret || "";
+          document.getElementById("cfg-qqbot-sandbox").value = qq.sandbox ? "true" : "false";
+          document.getElementById("cfg-qqbot-path").value = qq.webhook_path || "/qqbot/webhook";
+          document.getElementById("cfg-qqbot-prefix").value = qq.command_prefix || "/";
+          document.getElementById("cfg-qqbot-masters").value = (qq.masters || []).join("\n");
+          updateQQBotUrlPreview();
           document.getElementById("cfg-webui-user").value = currentConfig.webui?.username || "admin";
           document.getElementById("cfg-webui-pass").value = currentConfig.webui?.password || "";
           document.getElementById("cfg-gh-port").value = currentConfig.github.webhook_port || 7890;
@@ -1004,7 +1140,14 @@
       const proto = statusData.protocol || "onebot";
       const protoBadge = document.getElementById("bot-proto-badge");
       if (protoBadge) {
-        protoBadge.textContent = proto === "milky" ? "Milky" : "OneBot v11";
+        if (proto === "milky") {
+          protoBadge.textContent = "Milky";
+        } else if (proto === "qqbot") {
+          const modeLabel = statusData.qqbotMode === "webhook" ? "Webhook" : "WS";
+          protoBadge.textContent = `QQBot (${modeLabel})`;
+        } else {
+          protoBadge.textContent = "OneBot v11";
+        }
       }
 
       const st = statusData.botState || statusData.onebotState;
@@ -1170,6 +1313,16 @@
       currentConfig.milky.command_prefix = document.getElementById("cfg-milky-prefix").value || "/";
       const rawMilkyMasters = document.getElementById("cfg-milky-masters").value;
       currentConfig.milky.masters = rawMilkyMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
+
+      currentConfig.qqbot = currentConfig.qqbot || {};
+      currentConfig.qqbot.mode = currentQQBotMode;
+      currentConfig.qqbot.app_id = document.getElementById("cfg-qqbot-appid").value.trim();
+      currentConfig.qqbot.app_secret = document.getElementById("cfg-qqbot-secret").value.trim();
+      currentConfig.qqbot.sandbox = document.getElementById("cfg-qqbot-sandbox").value === "true";
+      currentConfig.qqbot.webhook_path = document.getElementById("cfg-qqbot-path").value.trim() || "/qqbot/webhook";
+      currentConfig.qqbot.command_prefix = document.getElementById("cfg-qqbot-prefix").value || "/";
+      const rawQQMasters = document.getElementById("cfg-qqbot-masters").value;
+      currentConfig.qqbot.masters = rawQQMasters.split(/[\s,]+/).map(v => v.trim()).filter(Boolean);
       currentConfig.webui = currentConfig.webui || {};
       currentConfig.webui.username = document.getElementById("cfg-webui-user").value.trim() || "admin";
       currentConfig.webui.password = document.getElementById("cfg-webui-pass").value;

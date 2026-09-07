@@ -10,8 +10,21 @@ export interface BotConnectionState {
   maxAttempts: number;
 }
 
+export interface SendMessageOptions {
+  /**
+   * The message ID being replied to (for passive messages in QQ Bot API v2).
+   * If omitted, the message is sent as an active proactive message.
+   */
+  msgId?: string;
+  /**
+   * Reply sequence number (1, 2, ...).
+   * If omitted in QQBotClient, it will be automatically tracked and incremented per msgId.
+   */
+  msgSeq?: number;
+}
+
 export interface IBotClient {
-  readonly protocol: "onebot" | "milky";
+  readonly protocol: "onebot" | "milky" | "qqbot";
   
   connect(): void;
   disconnect(): void;
@@ -24,24 +37,36 @@ export interface IBotClient {
   sendGroupImage(
     groupId: string,
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    options?: SendMessageOptions
   ): Promise<void>;
-  sendGroupText(groupId: string, text: string): Promise<void>;
+  sendGroupText(
+    groupId: string,
+    text: string,
+    options?: SendMessageOptions
+  ): Promise<void>;
   sendPrivateImage(
     userId: string,
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    options?: SendMessageOptions
   ): Promise<void>;
-  sendPrivateText(userId: string, text: string): Promise<void>;
+  sendPrivateText(
+    userId: string,
+    text: string,
+    options?: SendMessageOptions
+  ): Promise<void>;
 
   sendImageToTarget(
     target: { type: string; id: string },
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    options?: SendMessageOptions
   ): Promise<void>;
   sendTextToTarget(
     target: { type: string; id: string },
-    text: string
+    text: string,
+    options?: SendMessageOptions
   ): Promise<void>;
 
   getMessageMetadata(messageId: string): string | undefined;

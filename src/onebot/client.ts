@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import { OneBotConfig } from "../config";
 import { sanitizeTextForCq } from "../utils";
-import { IBotClient, BotInfo, BotConnectionState } from "../bot/types";
+import { IBotClient, BotInfo, BotConnectionState, SendMessageOptions } from "../bot/types";
 
 interface PendingRequest {
   resolve: (data: any) => void;
@@ -326,7 +326,8 @@ export class OneBotClient implements IBotClient {
   async sendGroupImage(
     groupId: string,
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    _options?: SendMessageOptions
   ): Promise<void> {
     const message = `[CQ:image,file=base64://${imageBase64}]`;
     try {
@@ -353,7 +354,11 @@ export class OneBotClient implements IBotClient {
   /**
    * Send a group text message.
    */
-  async sendGroupText(groupId: string, text: string): Promise<void> {
+  async sendGroupText(
+    groupId: string,
+    text: string,
+    _options?: SendMessageOptions
+  ): Promise<void> {
     try {
       await this.callApi("send_group_msg", {
         group_id: Number(groupId),
@@ -373,7 +378,8 @@ export class OneBotClient implements IBotClient {
   async sendPrivateImage(
     userId: string,
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    _options?: SendMessageOptions
   ): Promise<void> {
     const message = `[CQ:image,file=base64://${imageBase64}]`;
     try {
@@ -398,7 +404,11 @@ export class OneBotClient implements IBotClient {
   /**
    * Send a private text message.
    */
-  async sendPrivateText(userId: string, text: string): Promise<void> {
+  async sendPrivateText(
+    userId: string,
+    text: string,
+    _options?: SendMessageOptions
+  ): Promise<void> {
     try {
       await this.callApi("send_private_msg", {
         user_id: Number(userId),
@@ -418,12 +428,13 @@ export class OneBotClient implements IBotClient {
   async sendImageToTarget(
     target: { type: string; id: string },
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    options?: SendMessageOptions
   ): Promise<void> {
     if (target.type === "group") {
-      await this.sendGroupImage(target.id, imageBase64, fallbackText);
+      await this.sendGroupImage(target.id, imageBase64, fallbackText, options);
     } else {
-      await this.sendPrivateImage(target.id, imageBase64, fallbackText);
+      await this.sendPrivateImage(target.id, imageBase64, fallbackText, options);
     }
   }
 
@@ -432,12 +443,13 @@ export class OneBotClient implements IBotClient {
    */
   async sendTextToTarget(
     target: { type: string; id: string },
-    text: string
+    text: string,
+    options?: SendMessageOptions
   ): Promise<void> {
     if (target.type === "group") {
-      await this.sendGroupText(target.id, text);
+      await this.sendGroupText(target.id, text, options);
     } else {
-      await this.sendPrivateText(target.id, text);
+      await this.sendPrivateText(target.id, text, options);
     }
   }
 }

@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import { MilkyConfig } from "../config";
 import { sanitizeTextForCq } from "../utils";
-import { IBotClient, BotInfo, BotConnectionState } from "../bot/types";
+import { IBotClient, BotInfo, BotConnectionState, SendMessageOptions } from "../bot/types";
 
 export class MilkyClient implements IBotClient {
   public readonly protocol = "milky" as const;
@@ -354,10 +354,17 @@ export class MilkyClient implements IBotClient {
       data.friend?.nickname ||
       "";
 
+    const hasAtBot = segments.some(
+      (s: any) =>
+        s.type === "mention" &&
+        (String(s.data?.user_id) === String(event.self_id) ||
+          String(s.data?.user_id) === String(this.botInfo?.user_id))
+    );
+
     return {
       post_type: "message",
       message_type: isGroup ? "group" : "private",
-      sub_type: "normal",
+      sub_type: isGroup ? (hasAtBot ? "at" : "normal") : "friend",
       message_id: Number(data.message_seq),
       group_id: isGroup ? Number(data.peer_id) : undefined,
       user_id: Number(data.sender_id),
@@ -461,7 +468,8 @@ export class MilkyClient implements IBotClient {
   public async sendGroupImage(
     groupId: string,
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    _options?: SendMessageOptions
   ): Promise<void> {
     try {
       const segments: any[] = [
@@ -497,7 +505,11 @@ export class MilkyClient implements IBotClient {
   /**
    * Send a group text message.
    */
-  public async sendGroupText(groupId: string, text: string): Promise<void> {
+  public async sendGroupText(
+    groupId: string,
+    text: string,
+    _options?: SendMessageOptions
+  ): Promise<void> {
     try {
       const result = await this.callApi("send_group_message", {
         group_id: Number(groupId),
@@ -529,7 +541,8 @@ export class MilkyClient implements IBotClient {
   public async sendPrivateImage(
     userId: string,
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    _options?: SendMessageOptions
   ): Promise<void> {
     try {
       const segments: any[] = [
@@ -565,7 +578,11 @@ export class MilkyClient implements IBotClient {
   /**
    * Send a private text message.
    */
-  public async sendPrivateText(userId: string, text: string): Promise<void> {
+  public async sendPrivateText(
+    userId: string,
+    text: string,
+    _options?: SendMessageOptions
+  ): Promise<void> {
     try {
       const result = await this.callApi("send_private_message", {
         user_id: Number(userId),
@@ -594,23 +611,25 @@ export class MilkyClient implements IBotClient {
   public async sendImageToTarget(
     target: { type: string; id: string },
     imageBase64: string,
-    fallbackText?: string
+    fallbackText?: string,
+    options?: SendMessageOptions
   ): Promise<void> {
     if (target.type === "group") {
-      await this.sendGroupImage(target.id, imageBase64, fallbackText);
+      await this.sendGroupImage(target.id, imageBase64, fallbackText, options);
     } else {
-      await this.sendPrivateImage(target.id, imageBase64, fallbackText);
+      await this.sendPrivateImage(target.id, imageBase64, fallbackText, options);
     }
   }
 
   public async sendTextToTarget(
     target: { type: string; id: string },
-    text: string
+    text: string,
+    options?: SendMessageOptions
   ): Promise<void> {
     if (target.type === "group") {
-      await this.sendGroupText(target.id, text);
+      await this.sendGroupText(target.id, text, options);
     } else {
-      await this.sendPrivateText(target.id, text);
+      await this.sendPrivateText(target.id, text, options);
     }
   }
 }

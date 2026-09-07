@@ -22,7 +22,8 @@
 
 ### 基础与管理指令
 - `/help` 或 `/github help`: 显示完整帮助菜单。
-- `/status` 或 `/github status`: 查看服务运行时间 (Uptime)、机器人连接状态（OneBot / Milky 协议与在线详情）、GitHub Token 配置情况及订阅统计。
+- `/status` 或 `/github status`: 查看服务运行时间 (Uptime)、机器人连接状态（OneBot / Milky / QQBot 协议与在线详情）、GitHub Token 配置情况及订阅统计。
+- `/id` 或 `/myid`: 查看当前群聊 ID（或群 OpenID）与个人 ID（或用户 OpenID），方便在 WebUI 或配置文件中快速获取订阅目标 ID。
 - `/github sub <owner/repo> [事件...]`: 为当前群/私聊订阅指定仓库。事件可选（如 `push`, `issues`, `pull_request`），默认为全量订阅（仅限群主/管理员/Master）。
 - `/github unsub <owner/repo> [事件...]`: 取消订阅全部或指定事件（仅限群主/管理员/Master）。
 - `/github list`: 查看当前群/私聊已订阅的所有仓库及事件列表。
@@ -88,6 +89,20 @@
   - `access_token`: 访问令牌（将以 `Authorization: Bearer <token>` 及 WebSocket 查询参数自动注入鉴权）。
 - **图片传输**: 深度集成 Milky 的 `uri: "base64://..."` 规范，Puppeteer 渲染后的图片无需外部图床即可直推群聊与私聊。
 
+### 3. QQ 机器人官方开放平台 (API v2)
+- **官方文档**: [QQ 机器人文档 - 启动接入](https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/getting-started.html) / [群消息（全量模式）](https://bot.q.qq.com/wiki/develop/api-v2/autogen/event/group_message_create.html)
+- **连接方式**: 同时支持 **WebSocket (网关长连接)** 与 **Webhook (HTTP 回调推送)** 双模式：
+  - **WebSocket 网关长连接**: 无需公网 IP 或独立域名，客户端自动通过 `/gateway` 获取 WSS 地址并建立长连接，完成 Hello 握手、Identify 鉴权与心跳保活，适合家庭或内网部署。
+  - **Webhook HTTP 回调推送**: 腾讯开放平台主动 POST 回调推送事件，支持高并发。内置原生的 **Ed25519 签名算法**，在开放平台管理端配置并提交保存回调地址时，可自动完成 `OpCode 13` 回调地址安全校验，且无需任何第三方加密库依赖。
+- **凭证管理**: 根据 `AppID` + `AppSecret` 自动请求并定时刷新 `access_token`（7200 秒自动续期）。
+- **消息收发机制（主动消息 vs 被动消息）**:
+  - **被动消息（指令触发与交互）**: 当收到用户发送的指令（如 `/status`、`/help`、`/readme`、`#123`）或触发链接卡片解析时，系统会自动提取触发消息的 `msg_id` 并维护自增序号 `msg_seq`（防止平台报 40054005 重复丢弃），以**被动消息**格式回复。富媒体图片采用合规的二段式上传（`/files` 获取 `file_info` 后通过 `/messages` 挂载），**完全不消耗机器人的每日主动消息配额**，有效避开主动推送限额。
+  - **主动消息（GitHub 事件通知）**: 由 GitHub Webhook 或 Poller 轮询检测到的仓库变动事件（Push、PR、Issue、Release、Star 等）作为**主动消息**下发，受腾讯开放平台的频控规则管理（如已认证机器人每个群每日上限 1000 条）。
+- **全量消息模式 vs @模式**:
+  - **群消息全量模式 (`GROUP_MESSAGE_CREATE`)**：在 QQ 开放平台管理端申请并开通「接收所有消息」权限后，群内成员无需 @ 机器人即可直接发送 `/status`、`#123` 或分享 GitHub 链接，机器人均能自动接收并回复。
+  - **群 @ 机器人模式 (`GROUP_AT_MESSAGE_CREATE`)**：若未开通全量权限，机器人仍可在群内被 @ 时自动接收指令与事件。
+- **环境隔离**: 支持在 Web 控制台一键切换「正式环境」与「沙箱测试群环境」。
+
 ---
 
 ## 配置文件说明 (`config.json`)
@@ -96,7 +111,7 @@
 
 | 配置项 | 类型 | 说明 | 默认值 / 示例 |
 | :--- | :--- | :--- | :--- |
-| `protocol` | string | 机器人通信协议，可选 `"onebot"` 或 `"milky"` | `"onebot"` |
+| `protocol` | string | 机器人通信协议，可选 `"onebot"`、`"milky"` 或 `"qqbot"` | `"onebot"` |
 | **`onebot`** | object | OneBot v11 协议配置 | |
 | `onebot.ws_url` | string | OneBot 正向 WebSocket 连接地址 | `"ws://127.0.0.1:3001"` |
 | `onebot.access_token` | string | OneBot Access Token（无则留空） | `""` |
@@ -107,6 +122,14 @@
 | `milky.access_token` | string | Milky Bearer 鉴权 Token（无则留空） | `""` |
 | `milky.command_prefix` | string | 聊天指令前缀 | `"/"` |
 | `milky.masters` | string[] | 管理员 QQ 号列表 | `["123456789"]` |
+| **`qqbot`** | object | QQ 机器人官方开放平台 (API v2) 配置 | |
+| `qqbot.mode` | string | 接入模式：`"ws"` (WebSocket 长连接) 或 `"webhook"` (HTTP 回调推送) | `"ws"` |
+| `qqbot.app_id` | string | QQ 开放平台机器人 AppID | `"102030405"` |
+| `qqbot.app_secret` | string | QQ 开放平台机器人 AppSecret | `""` |
+| `qqbot.sandbox` | boolean | 是否连接沙箱环境 (https://sandbox.api.sgroup.qq.com) | `false` |
+| `qqbot.webhook_path` | string | Webhook 回调接收路径 | `"/qqbot/webhook"` |
+| `qqbot.command_prefix` | string | 聊天指令前缀 | `"/"` |
+| `qqbot.masters` | string[] | 管理员用户 OpenID 列表 | `[]` |
 | **`github`** | object | GitHub 交互与推送配置 | |
 | `github.webhook_port` | number | Webhook 与 WebUI 监听端口 | `7890` |
 | `github.webhook_secret` | string | GitHub Webhook Secret 签名校验密钥 | `""` |
@@ -142,7 +165,8 @@
 ## 环境要求
 
 - [Node.js](https://nodejs.org/) v18+
-- 运行中的 QQ 机器人服务（二选一）：
+- 机器人接入方式（三选一）：
+  - **QQ 机器人开放平台 (API v2)**: 官方官方机器人，支持 WebSocket 网关长连接或 Webhook 回调推送。
   - **OneBot v11**: 如 NapCat、LLOneBot、Lagrange 等，开启正向 WebSocket 服务。
   - **Milky (v1.3+)**: 如 Milky.Net、Acidify 等，开启 HTTP API 与 `/event` WebSocket 事件推送服务。
 - 一个公网 IP 或内网穿透地址（默认 Webhook / WebUI 端口 `7890`）。

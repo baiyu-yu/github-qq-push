@@ -12,17 +12,55 @@ export class GitHubWebhookServer {
   private app: express.Application;
   private handler: WebhookHandler | null = null;
   private server: http.Server | null = null;
+  private qqbotHandler:
+    | ((req: express.Request, res: express.Response) => Promise<void> | void)
+    | null = null;
 
   constructor() {
     this.app = express();
 
-    // Raw body for signature verification
+    // Raw body for GitHub webhook signature verification
     this.app.use(
       "/webhook",
       express.raw({ type: "application/json", limit: "10mb" })
     );
 
     this.app.post("/webhook", (req, res) => this.handleWebhook(req, res));
+
+    // QQ Bot Webhook endpoint (unauthenticated, raw body preserved for Ed25519)
+    const handleQQBot = (req: express.Request, res: express.Response) => {
+      if (this.qqbotHandler) {
+        Promise.resolve(this.qqbotHandler(req, res)).catch((err) => {
+          console.error("[QQBot] Webhook handling error:", err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Internal server error" });
+          }
+        });
+      } else {
+        res.status(503).json({ error: "QQBot Webhook handler is not active" });
+      }
+    };
+
+    // Middleware to catch default or custom QQBot webhook paths
+    this.app.use((req, res, next) => {
+      const custom = getConfig().qqbot?.webhook_path;
+      if (
+        req.path === "/qqbot/webhook" ||
+        req.path === "/api/qqbot/webhook" ||
+        (custom && req.path === custom)
+      ) {
+        if (req.method === "POST") {
+          return express.raw({ type: "application/json", limit: "10mb" })(
+            req,
+            res,
+            () => {
+              handleQQBot(req, res);
+            }
+          );
+        }
+      }
+      next();
+    });
 
     // Health check endpoint
     this.app.get("/health", (_req, res) => {
@@ -33,6 +71,15 @@ export class GitHubWebhookServer {
   onEvent(handler: WebhookHandler): void {
     this.handler = handler;
   }
+
+  onQQBotWebhook(
+    handler:
+      | ((req: express.Request, res: express.Response) => Promise<void> | void)
+      | null
+  ): void {
+    this.qqbotHandler = handler;
+  }
+
 
   private verifySignature(payload: Buffer, signature: string): boolean {
     const secret = getConfig().github.webhook_secret;

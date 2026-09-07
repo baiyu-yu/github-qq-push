@@ -12,6 +12,15 @@
     "command_prefix": "/",
     "masters": ["123456789"]
   },
+  "qqbot": {
+    "mode": "ws",
+    "app_id": "102030405",
+    "app_secret": "your_app_secret_here",
+    "sandbox": false,
+    "webhook_path": "/qqbot/webhook",
+    "command_prefix": "/",
+    "masters": ["USER_OPENID_HERE"]
+  },
   "github": {
     "webhook_port": 7890,
     "webhook_secret": "",

@@ -82,6 +82,7 @@ function buildHelpMessage(prefix: string) {
   return [
     "[GitHub QQ Push] 可用命令:",
     `${prefix}status`,
+    `${prefix}id  (查看当前群ID和个人ID)`,
     `${prefix}help`,
     `${prefix}github on | ${prefix}github off`,
     `${prefix}github sub <owner/repo> [events]`,
@@ -118,6 +119,12 @@ function getBotSettings(bot: IBotClient) {
       masters: cfg.milky.masters || [],
     };
   }
+  if (bot.protocol === "qqbot" && cfg.qqbot) {
+    return {
+      command_prefix: cfg.qqbot.command_prefix || "/",
+      masters: cfg.qqbot.masters || [],
+    };
+  }
   return {
     command_prefix: cfg.onebot.command_prefix || "/",
     masters: cfg.onebot.masters || [],
@@ -126,8 +133,36 @@ function getBotSettings(bot: IBotClient) {
 
 export async function handleMessage(
   payload: any,
-  bot: IBotClient
+  rawBot: IBotClient
 ): Promise<void> {
+  const msgId = String(payload.message_id || "");
+  const bot: IBotClient = msgId
+    ? {
+        ...rawBot,
+        sendGroupText: (groupId, text, options) =>
+          rawBot.sendGroupText(groupId, text, { msgId, ...options }),
+        sendGroupImage: (groupId, imageBase64, fallbackText, options) =>
+          rawBot.sendGroupImage(groupId, imageBase64, fallbackText, {
+            msgId,
+            ...options,
+          }),
+        sendPrivateText: (userId, text, options) =>
+          rawBot.sendPrivateText(userId, text, { msgId, ...options }),
+        sendPrivateImage: (userId, imageBase64, fallbackText, options) =>
+          rawBot.sendPrivateImage(userId, imageBase64, fallbackText, {
+            msgId,
+            ...options,
+          }),
+        sendImageToTarget: (target, imageBase64, fallbackText, options) =>
+          rawBot.sendImageToTarget(target, imageBase64, fallbackText, {
+            msgId,
+            ...options,
+          }),
+        sendTextToTarget: (target, text, options) =>
+          rawBot.sendTextToTarget(target, text, { msgId, ...options }),
+      }
+    : rawBot;
+
   const { messageType, targetId } = getTarget(payload);
   const rawText = String(payload.raw_message || "").trim();
   const text = stripCqCodes(rawText);
@@ -135,7 +170,7 @@ export async function handleMessage(
 
   // Truncated log to avoid dumping full chat content into logs/WebUI
   const preview = rawText.length > 120 ? rawText.slice(0, 120) + "..." : rawText;
-  console.log(`[Message] Received: type=${messageType}, target=${targetId}, text="${preview}"`);
+  console.log(`[Message] Received: type=${messageType}, target=${targetId}, text="${preview}" (msgId=${msgId || "none"})`);
 
   if (!["group", "private"].includes(messageType)) {
     console.log(`[Message] Ignoring non-group/private message type: ${messageType}`);
@@ -175,11 +210,17 @@ export async function handleMessage(
     }
 
     const tokenCount = (getConfig().github.access_tokens || []).length;
+    const protoLabel =
+      bot.protocol === "milky"
+        ? "Milky"
+        : bot.protocol === "qqbot"
+          ? `QQBot (${(getConfig().qqbot?.mode || "ws").toUpperCase()})`
+          : "OneBot";
 
     const reply = [
       "[GitHub QQ Push] 运行状态",
       `运行时间 (Uptime): ${uptimeStr.trim()}`,
-      `OneBot: ${connText}`,
+      `机器人服务 (${protoLabel}): ${connText}`,
       `GitHub Token: ${tokenCount > 0 ? `已配置 ${tokenCount} 个` : "未配置（轮询可能受匿名限流）"}`,
       `当前订阅数: ${subsCount}`,
     ].join("\n");
@@ -190,6 +231,60 @@ export async function handleMessage(
   if (text === `${prefix}help` || text === `${prefix}github help`) {
     console.log(`[Message] Matches help command`);
     await sendText(bot, messageType, targetId, buildHelpMessage(prefix));
+    return;
+  }
+
+  const isAtBot =
+    payload.sub_type === "at" ||
+    (Boolean(payload.self_id) &&
+      (rawText.includes(`[CQ:at,qq=${payload.self_id}]`) ||
+        rawText.startsWith(`<@!${payload.self_id}>`)));
+
+  const isIdCommand =
+    text === `${prefix}id` ||
+    text === "/id" ||
+    text === `${prefix}myid` ||
+    text === "/myid" ||
+    text === `${prefix}whoami` ||
+    text === "/whoami" ||
+    text === `${prefix}github id` ||
+    text === "/github id" ||
+    (messageType === "private" && (text === "id" || text === "myid" || text === "whoami")) ||
+    (isAtBot && (text === "id" || text === "myid" || text === "whoami"));
+
+  if (isIdCommand) {
+    console.log(`[Message] Matches id command`);
+    const protoLabel =
+      bot.protocol === "milky"
+        ? "Milky"
+        : bot.protocol === "qqbot"
+          ? `QQBot (${(getConfig().qqbot?.mode || "ws").toUpperCase()})`
+          : "OneBot";
+
+    const isGroup = messageType === "group";
+    const currentGroupId = isGroup
+      ? String(payload.group_id || targetId)
+      : "无 (私聊会话)";
+    const currentUserId = senderId || "未知";
+    const senderNick = payload.sender?.nickname
+      ? ` (${payload.sender.nickname})`
+      : "";
+    const selfId = payload.self_id || bot.getBotInfo()?.user_id || "";
+
+    const isQQBot = bot.protocol === "qqbot";
+    const groupLabel = isQQBot ? "群 OpenID" : "群号 (Group ID)";
+    const userLabel = isQQBot ? "个人 OpenID" : "个人 QQ (User ID)";
+
+    const reply = [
+      `[ID 查询] 协议: ${protoLabel}`,
+      `当前场景: ${isGroup ? "群聊 (Group)" : "私聊 (Private)"}`,
+      `${groupLabel}: ${currentGroupId}`,
+      `${userLabel}: ${currentUserId}${senderNick}`,
+      ...(selfId ? [`机器人 ID: ${selfId}`] : []),
+      `订阅目标配置 (Target): ${targetId} (${messageType})`,
+    ].join("\n");
+
+    await sendText(bot, messageType, targetId, reply);
     return;
   }
 

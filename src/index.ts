@@ -92,6 +92,22 @@ async function main() {
   // 5. Create and start webhook server (also serves WebUI)
   const webhookServer = new GitHubWebhookServer();
 
+  const updateBotWebhookRouting = (client: IBotClient) => {
+    if (client.protocol === "qqbot") {
+      webhookServer.onQQBotWebhook((req, res) => {
+        // @ts-ignore
+        if (typeof client.handleWebhookRequest === "function") {
+          // @ts-ignore
+          return client.handleWebhookRequest(req, res);
+        }
+        res.status(500).json({ error: "QQBot client cannot handle webhook" });
+      });
+    } else {
+      webhookServer.onQQBotWebhook(null);
+    }
+  };
+  updateBotWebhookRouting(bot);
+
   // Attach WebUI routes and static files to the same Express app
   // @ts-ignore - access private app field since it's an internal server
   const app = webhookServer["app"];
@@ -111,6 +127,7 @@ async function main() {
       getBot: () => bot,
       setBot: (newBot) => {
         bot = newBot;
+        updateBotWebhookRouting(newBot);
       },
       poller,
       webhookServer,
@@ -137,6 +154,17 @@ async function main() {
     console.log(
       `[Main] Protocol: Milky (${config.milky?.endpoint || "http://127.0.0.1:3000"})`
     );
+  } else if (proto === "qqbot") {
+    const qqCfg = config.qqbot;
+    const mode = qqCfg?.mode === "webhook" ? "Webhook" : "WebSocket Gateway";
+    console.log(
+      `[Main] Protocol: QQ 机器人开放平台 API v2 [${mode}] (AppID: ${qqCfg?.app_id || "未配置"})`
+    );
+    if (qqCfg?.mode === "webhook") {
+      console.log(
+        `[Main] QQBot Webhook: http://0.0.0.0:${config.github.webhook_port}${qqCfg.webhook_path || "/qqbot/webhook"}`
+      );
+    }
   } else {
     console.log(`[Main] Protocol: OneBot WS (${config.onebot.ws_url})`);
   }

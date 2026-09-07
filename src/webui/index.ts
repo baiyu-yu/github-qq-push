@@ -44,7 +44,10 @@ export function getWebUIRouter(deps: WebUIDeps) {
   router.post("/api/config", async (req, res) => {
     try {
       const newConfig = req.body;
-      const proto = (newConfig.protocol || "onebot") as "onebot" | "milky";
+      const proto = (newConfig.protocol || "onebot") as
+        | "onebot"
+        | "milky"
+        | "qqbot";
 
       // Validate the essential shape BEFORE writing to disk, so a malformed
       // request cannot corrupt config.json.
@@ -56,14 +59,26 @@ export function getWebUIRouter(deps: WebUIDeps) {
         (proto === "onebot" &&
           (!newConfig.onebot || typeof newConfig.onebot.ws_url !== "string")) ||
         (proto === "milky" &&
-          (!newConfig.milky || typeof newConfig.milky.endpoint !== "string"))
+          (!newConfig.milky || typeof newConfig.milky.endpoint !== "string")) ||
+        (proto === "qqbot" &&
+          (!newConfig.qqbot ||
+            typeof newConfig.qqbot.app_id !== "string" ||
+            typeof newConfig.qqbot.app_secret !== "string"))
       ) {
+        let errorMsg = "配置结构不完整。";
+        if (proto === "milky") {
+          errorMsg =
+            "配置结构不完整：需要 milky.endpoint 和 github.webhook_port。";
+        } else if (proto === "qqbot") {
+          errorMsg =
+            "配置结构不完整：需要 qqbot.app_id、qqbot.app_secret 和 github.webhook_port。";
+        } else {
+          errorMsg =
+            "配置结构不完整：需要 onebot.ws_url 和 github.webhook_port。";
+        }
         res.status(400).json({
           success: false,
-          error:
-            proto === "milky"
-              ? "配置结构不完整：需要 milky.endpoint 和 github.webhook_port。"
-              : "配置结构不完整：需要 onebot.ws_url 和 github.webhook_port。",
+          error: errorMsg,
         });
         return;
       }
@@ -107,8 +122,24 @@ export function getWebUIRouter(deps: WebUIDeps) {
           ? [newConfig.github.access_token]
           : [];
 
+      if (newConfig.qqbot) {
+        newConfig.qqbot.mode =
+          newConfig.qqbot.mode === "webhook" ? "webhook" : "ws";
+        newConfig.qqbot.sandbox = !!newConfig.qqbot.sandbox;
+        newConfig.qqbot.webhook_path =
+          newConfig.qqbot.webhook_path || "/qqbot/webhook";
+        newConfig.qqbot.command_prefix =
+          newConfig.qqbot.command_prefix || "/";
+        newConfig.qqbot.masters = Array.isArray(newConfig.qqbot.masters)
+          ? newConfig.qqbot.masters
+          : [];
+      }
+
       const oldConfig = getConfig();
-      const oldProto = (oldConfig.protocol || "onebot") as "onebot" | "milky";
+      const oldProto = (oldConfig.protocol || "onebot") as
+        | "onebot"
+        | "milky"
+        | "qqbot";
       const oldGithub = oldConfig.github;
       const oldPollingEnabled = oldGithub.polling_enabled !== false;
       const oldPollingInterval = oldGithub.polling_interval || 60;
@@ -136,9 +167,13 @@ export function getWebUIRouter(deps: WebUIDeps) {
           deps.poller.updateBot(newBot);
         }
       } else if (currentBot) {
-        currentBot.updateConfig(
-          proto === "milky" ? newConfig.milky : newConfig.onebot
-        );
+        if (proto === "milky") {
+          currentBot.updateConfig(newConfig.milky);
+        } else if (proto === "qqbot") {
+          currentBot.updateConfig(newConfig.qqbot);
+        } else {
+          currentBot.updateConfig(newConfig.onebot);
+        }
       }
 
       const newPollingEnabled = newConfig.github?.polling_enabled !== false;
@@ -170,10 +205,16 @@ export function getWebUIRouter(deps: WebUIDeps) {
   router.get("/api/status", (req, res) => {
     const currentBot = getCurrentBot();
     const botState = currentBot ? currentBot.getConnectionState() : null;
+    const proto = currentBot
+      ? currentBot.protocol
+      : getConfig().protocol || "onebot";
+    const qqbotMode =
+      proto === "qqbot" ? getConfig().qqbot?.mode || "ws" : undefined;
     res.json({
       status: "running",
       uptime: Math.floor((Date.now() - serviceStartTime) / 1000),
-      protocol: currentBot ? currentBot.protocol : (getConfig().protocol || "onebot"),
+      protocol: proto,
+      qqbotMode,
       botInfo: currentBot ? currentBot.getBotInfo() : null,
       subscriptionsCount: getConfig().subscriptions.length,
       disabledGroupsCount: Object.values(getState().groupStates).filter(
