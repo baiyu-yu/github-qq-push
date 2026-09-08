@@ -121,11 +121,15 @@
     .brand-logo {
       width: 38px;
       height: 38px;
-      border-radius: 6px;
-      border: 1px solid var(--card-border);
-      background: var(--card);
+      border: none;
+      background: transparent;
       display: block;
-      object-fit: cover;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .brand-logo:hover {
+      transform: scale(1.08);
     }
 
     .brand-title {
@@ -767,18 +771,103 @@
       align-items: center;
     }
 
-    /* Config Save Bar (Clean Static Footer) */
-    .save-sticky-bar {
-      margin-top: 24px;
-      margin-bottom: 24px;
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      padding: 14px 20px;
-      box-shadow: var(--shadow-sm);
+    /* Config Save Floating Bar (Slide-in Dock when modified) */
+    .save-floating-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(140%);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+      z-index: 999;
+      width: calc(100% - 32px);
+      max-width: 860px;
+    }
+
+    .save-floating-bar.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .save-bar-content {
+      background: rgba(22, 27, 34, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--accent);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(88, 166, 255, 0.22);
+      border-radius: 10px;
+      padding: 12px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    :root[data-theme="light"] .save-bar-content {
+      background: rgba(255, 255, 255, 0.96);
+      border-color: var(--accent);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 0 16px rgba(9, 105, 218, 0.18);
+    }
+
+    .save-bar-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dirty-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--warning-subtle);
+      color: var(--warning);
+      border: 1px solid var(--warning);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .dirty-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--warning);
+      animation: pulse-dot 1.5s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.75); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .dirty-text {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .save-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-dirty-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background: var(--warning);
+      border-radius: 50%;
+      margin-left: 6px;
+      animation: pulse-dot 1.5s infinite;
+      vertical-align: middle;
     }
 
     .feedback {
@@ -1056,14 +1145,23 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
       }
-      .save-sticky-bar {
-        flex-direction: column;
-        gap: 10px;
-        align-items: stretch;
-        padding: 12px 16px;
+      .save-floating-bar {
+        bottom: 12px;
+        width: calc(100% - 20px);
       }
-      .save-sticky-bar .btn {
+      .save-bar-content {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+        padding: 12px 14px;
+      }
+      .save-bar-actions {
         width: 100%;
+        justify-content: flex-end;
+      }
+      .save-bar-actions .btn {
+        flex: 1;
+        justify-content: center;
       }
       .form-control, select.form-control {
         font-size: 14px;
@@ -1187,6 +1285,7 @@
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
           <span>全局配置</span>
+          <span id="tab-config-dirty-dot" class="nav-dirty-dot" title="有未保存的配置更改" style="display: none;"></span>
         </button>
       </nav>
     </div>
@@ -1483,14 +1582,11 @@
     <main id="tab-config" class="tab-content">
       <!-- Section 1: Bot Protocol Adapter -->
       <div class="card">
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+        <div class="card-header">
           <div>
             <h2 class="card-title">机器人协议适配器设置</h2>
             <div class="card-subtitle">支持 OneBot v11、Milky 及 QQ 官方开放平台</div>
           </div>
-          <button class="btn sm" onclick="saveGlobalSettings()">
-            保存配置
-          </button>
         </div>
 
         <div class="card-body">
@@ -1587,20 +1683,25 @@
               </div>
             </div>
 
-            <div class="form-group" id="qqbot-webhook-url-box" style="display: none;">
-              <label>QQ 开放平台 Webhook 回调完整地址</label>
-              <div style="display: flex; gap: 6px;">
-                <input id="cfg-qqbot-computed-url" class="form-control" readonly style="font-family: monospace; background: var(--bg);">
-                <button class="btn secondary" style="white-space: nowrap;" onclick="copyQQBotWebhookUrl()">复制完整地址</button>
-              </div>
-              <div class="input-hint">填入腾讯开放平台管理端的回调配置中，内置 Ed25519 签名验证。</div>
-            </div>
-
-            <div class="grid-3">
+            <!-- Webhook Specific Box (Hidden in WebSocket mode) -->
+            <div id="qqbot-webhook-box" style="display: none;">
               <div class="form-group">
                 <label>Webhook 路径</label>
                 <input id="cfg-qqbot-path" class="form-control" placeholder="/qqbot/webhook" oninput="updateQQBotUrlPreview()">
+                <div class="input-hint">本地服务接收腾讯开放平台 HTTP POST 事件回调的端点路径。</div>
               </div>
+
+              <div class="form-group" id="qqbot-webhook-url-box">
+                <label>QQ 开放平台 Webhook 回调完整地址</label>
+                <div style="display: flex; gap: 6px;">
+                  <input id="cfg-qqbot-computed-url" class="form-control" readonly style="font-family: monospace; background: var(--bg);">
+                  <button class="btn secondary" style="white-space: nowrap;" onclick="copyQQBotWebhookUrl()">复制完整地址</button>
+                </div>
+                <div class="input-hint">填入腾讯开放平台管理端的回调配置中，内置 Ed25519 签名验证。</div>
+              </div>
+            </div>
+
+            <div class="grid-2">
               <div class="form-group">
                 <label>运行环境</label>
                 <select id="cfg-qqbot-sandbox" class="form-control">
@@ -1783,18 +1884,32 @@
         </div>
       </div>
 
-      <!-- Sticky Save Bar -->
-      <div class="save-sticky-bar">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-weight: 600; font-size: 13.5px;">参数保存与热重载</span>
-          <span class="feedback" id="save-msg-global"></span>
-        </div>
+    </main>
+  </div>
 
-        <button class="btn" onclick="saveGlobalSettings()">
+  <!-- Floating Save & Hot Reload Bar (Only displayed when modifications exist) -->
+  <div class="save-floating-bar" id="save-floating-bar">
+    <div class="save-bar-content">
+      <div class="save-bar-info">
+        <span class="dirty-badge">
+          <span class="dirty-dot"></span>
+          <span>未保存修改</span>
+        </span>
+        <span class="dirty-text">检测到配置已修改，需保存并触发服务热重载</span>
+        <span class="feedback" id="save-msg-global"></span>
+      </div>
+      <div class="save-bar-actions">
+        <button type="button" class="btn secondary sm" onclick="discardGlobalSettings()">放弃修改</button>
+        <button type="button" class="btn sm" id="btn-save-global" onclick="saveGlobalSettings()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
           保存配置并使之生效
         </button>
       </div>
-    </main>
+    </div>
   </div>
 
   <!-- Modal 1: Group Selector (display:none when inactive) -->
@@ -2048,6 +2163,10 @@
       if (tabId === "tab-logs") {
         fetchLogs();
       }
+
+      if (typeof updateConfigDirtyState === "function") {
+        updateConfigDirtyState();
+      }
     }
 
     // --- Theme Control ---
@@ -2131,6 +2250,9 @@
       if (proto === "qqbot") {
         updateQQBotUrlPreview();
       }
+      if (window.initialConfigLoaded && typeof updateConfigDirtyState === "function") {
+        updateConfigDirtyState();
+      }
     }
 
     let currentQQBotMode = "ws";
@@ -2139,22 +2261,25 @@
       const optWs = document.getElementById("qqbot-mode-opt-ws");
       const optWh = document.getElementById("qqbot-mode-opt-webhook");
       const hint = document.getElementById("qqbot-mode-hint");
-      const urlBox = document.getElementById("qqbot-webhook-url-box");
+      const whBox = document.getElementById("qqbot-webhook-box");
 
       if (optWs) optWs.classList.toggle("active", mode === "ws");
       if (optWh) optWh.classList.toggle("active", mode === "webhook");
 
       if (mode === "webhook") {
-        if (urlBox) urlBox.style.display = "block";
+        if (whBox) whBox.style.display = "block";
         if (hint) {
           hint.textContent = "Webhook 模式：通过腾讯开放平台主动 POST 回调推送事件，支持高并发，需具备公网 IP 或域名并支持 HTTPS。";
         }
         updateQQBotUrlPreview();
       } else {
-        if (urlBox) urlBox.style.display = "none";
+        if (whBox) whBox.style.display = "none";
         if (hint) {
           hint.textContent = "WebSocket 模式：无需公网 IP 或独立域名，本地客户端长连接至 QQ 开放平台网关。";
         }
+      }
+      if (window.initialConfigLoaded && typeof updateConfigDirtyState === "function") {
+        updateConfigDirtyState();
       }
     }
 
@@ -2253,6 +2378,9 @@
           document.getElementById("cfg-link-card-groups").value = (currentConfig.github.link_card_enabled_groups || []).join("\n");
           
           window.initialConfigLoaded = true;
+          if (typeof recordConfigBaseline === "function") {
+            recordConfigBaseline();
+          }
         }
 
         if (document.getElementById("tab-logs").classList.contains("active")) {
@@ -2500,10 +2628,131 @@
         if (data.restartRequired?.port) hint += "；监听端口已切换";
         
         showMessage(elId, hint);
+        if (typeof recordConfigBaseline === "function") {
+          recordConfigBaseline();
+        }
         loadData();
       } catch (error) {
         showMessage(elId, `保存失败: ${error.message}`, true);
       }
+    }
+
+    // --- Config Dirty State Tracking & Floating Save Bar ---
+    let configBaselineSnapshot = null;
+    let isConfigDirty = false;
+
+    function getConfigSnapshot() {
+      return {
+        protocol: currentProtocol,
+        qqbotMode: currentQQBotMode,
+        obWs: document.getElementById("cfg-ob-ws")?.value || "",
+        obToken: document.getElementById("cfg-ob-token")?.value || "",
+        obPrefix: document.getElementById("cfg-ob-prefix")?.value || "",
+        obMasters: document.getElementById("cfg-ob-masters")?.value || "",
+        milkyEndpoint: document.getElementById("cfg-milky-endpoint")?.value || "",
+        milkyToken: document.getElementById("cfg-milky-token")?.value || "",
+        milkyPrefix: document.getElementById("cfg-milky-prefix")?.value || "",
+        milkyMasters: document.getElementById("cfg-milky-masters")?.value || "",
+        qqAppId: document.getElementById("cfg-qqbot-appid")?.value || "",
+        qqSecret: document.getElementById("cfg-qqbot-secret")?.value || "",
+        qqSandbox: document.getElementById("cfg-qqbot-sandbox")?.value || "",
+        qqPath: document.getElementById("cfg-qqbot-path")?.value || "",
+        qqPrefix: document.getElementById("cfg-qqbot-prefix")?.value || "",
+        qqMasters: document.getElementById("cfg-qqbot-masters")?.value || "",
+        webuiUser: document.getElementById("cfg-webui-user")?.value || "",
+        webuiPass: document.getElementById("cfg-webui-pass")?.value || "",
+        ghPort: document.getElementById("cfg-gh-port")?.value || "",
+        ghSecret: document.getElementById("cfg-gh-secret")?.value || "",
+        ghToken: document.getElementById("cfg-gh-token")?.value || "",
+        ghPolling: document.getElementById("cfg-polling-enabled")?.value || "",
+        ghInterval: document.getElementById("cfg-polling-interval")?.value || "",
+        ghLinkMode: document.getElementById("cfg-link-card-mode")?.value || "",
+        ghLinkGroups: document.getElementById("cfg-link-card-groups")?.value || "",
+        renderQuality: document.getElementById("cfg-render-quality")?.value || "",
+        renderMaxHeight: document.getElementById("cfg-render-maxheight")?.value || "",
+        renderConcurrency: document.getElementById("cfg-render-concurrency")?.value || "",
+        renderMaxQueue: document.getElementById("cfg-render-maxqueuesize")?.value || "",
+        renderMaxShotHeight: document.getElementById("cfg-render-maxscreenshotheight")?.value || "",
+        renderTheme: document.getElementById("cfg-render-theme")?.value || ""
+      };
+    }
+
+    function applyConfigSnapshot(snap) {
+      if (!snap) return;
+      if (snap.protocol) switchProtocol(snap.protocol);
+      if (snap.qqbotMode) switchQQBotMode(snap.qqbotMode);
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val ?? "";
+      };
+      setVal("cfg-ob-ws", snap.obWs);
+      setVal("cfg-ob-token", snap.obToken);
+      setVal("cfg-ob-prefix", snap.obPrefix);
+      setVal("cfg-ob-masters", snap.obMasters);
+      setVal("cfg-milky-endpoint", snap.milkyEndpoint);
+      setVal("cfg-milky-token", snap.milkyToken);
+      setVal("cfg-milky-prefix", snap.milkyPrefix);
+      setVal("cfg-milky-masters", snap.milkyMasters);
+      setVal("cfg-qqbot-appid", snap.qqAppId);
+      setVal("cfg-qqbot-secret", snap.qqSecret);
+      setVal("cfg-qqbot-sandbox", snap.qqSandbox);
+      setVal("cfg-qqbot-path", snap.qqPath);
+      setVal("cfg-qqbot-prefix", snap.qqPrefix);
+      setVal("cfg-qqbot-masters", snap.qqMasters);
+      setVal("cfg-webui-user", snap.webuiUser);
+      setVal("cfg-webui-pass", snap.webuiPass);
+      setVal("cfg-gh-port", snap.ghPort);
+      setVal("cfg-gh-secret", snap.ghSecret);
+      setVal("cfg-gh-token", snap.ghToken);
+      setVal("cfg-polling-enabled", snap.ghPolling);
+      setVal("cfg-polling-interval", snap.ghInterval);
+      setVal("cfg-link-card-mode", snap.ghLinkMode);
+      setVal("cfg-link-card-groups", snap.ghLinkGroups);
+      setVal("cfg-render-quality", snap.renderQuality);
+      setVal("cfg-render-maxheight", snap.renderMaxHeight);
+      setVal("cfg-render-concurrency", snap.renderConcurrency);
+      setVal("cfg-render-maxqueuesize", snap.renderMaxQueue);
+      setVal("cfg-render-maxscreenshotheight", snap.renderMaxShotHeight);
+      setVal("cfg-render-theme", snap.renderTheme);
+      updateQQBotUrlPreview();
+    }
+
+    function recordConfigBaseline() {
+      configBaselineSnapshot = getConfigSnapshot();
+      updateConfigDirtyState();
+    }
+
+    function checkConfigDirty() {
+      if (!configBaselineSnapshot) return false;
+      const current = getConfigSnapshot();
+      return JSON.stringify(current) !== JSON.stringify(configBaselineSnapshot);
+    }
+
+    function updateConfigDirtyState() {
+      isConfigDirty = checkConfigDirty();
+      const saveBar = document.getElementById("save-floating-bar");
+      const dirtyDot = document.getElementById("tab-config-dirty-dot");
+      const activeTab = document.querySelector(".tab-content.active");
+      const isConfigTabActive = activeTab && activeTab.id === "tab-config";
+
+      if (dirtyDot) {
+        dirtyDot.style.display = isConfigDirty ? "inline-block" : "none";
+      }
+
+      if (saveBar) {
+        if (isConfigDirty && isConfigTabActive) {
+          saveBar.classList.add("show");
+        } else {
+          saveBar.classList.remove("show");
+        }
+      }
+    }
+
+    function discardGlobalSettings() {
+      if (!configBaselineSnapshot) return;
+      applyConfigSnapshot(configBaselineSnapshot);
+      updateConfigDirtyState();
+      showToast("已撤销修改，恢复为上次保存的配置");
     }
 
     // --- Save Global Settings ---
@@ -2763,6 +3012,24 @@
         loadData();
         setInterval(loadData, 10000);
       }
+
+      const configTabEl = document.getElementById("tab-config");
+      if (configTabEl) {
+        configTabEl.addEventListener("input", () => {
+          if (window.initialConfigLoaded) updateConfigDirtyState();
+        });
+        configTabEl.addEventListener("change", () => {
+          if (window.initialConfigLoaded) updateConfigDirtyState();
+        });
+      }
+
+      window.addEventListener("beforeunload", (e) => {
+        if (isConfigDirty) {
+          e.preventDefault();
+          e.returnValue = "检测到有未保存的配置更改，确定离开吗？";
+          return e.returnValue;
+        }
+      });
     })();
   </script>
 </body>

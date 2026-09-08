@@ -1,12 +1,19 @@
 # GitHub QQ 推送服务
 
-这是一个轻量且优雅的 Node.js 服务，旨在将 GitHub Webhooks 与 QQ 机器人协议（支持 **OneBot v11** 与 **[Milky](https://milky.ntqqrev.org/) v1.3+**）无缝连接。它能将实时的 GitHub 仓库事件安全地推送至您的 QQ 群或私聊，并自动生成深色模式的精美图片卡片。
+这是一个轻量且优雅的 Node.js 服务，旨在将 GitHub 与 QQ 机器人生态（支持 **QQ 官方机器人 (API v2)**、**OneBot v11** 与 **[Milky](https://milky.ntqqrev.org/) v1.3+**）无缝连接。它能将实时的 GitHub 仓库事件安全地推送至您的 QQ 群或私聊，并自动生成深色模式的精美图片卡片。
+
+> [!TIP]
+> **✨ 核心优势：配置超简单，只需要填一个 GitHub Token！**  
+> - **无需公网 IP / 内网穿透**：内网电脑、家用 NAS、软路由均可直接部署；
+> - **无需逐个配置 Webhook**：完全不必到每个 GitHub 仓库后台挨个设置回调地址与密钥；
+> - **开箱即用**：只要在 Web 界面填入一个 GitHub Token，机器人即可借助内置的智能轮询引擎自动监听所有订阅仓库的最新事件，在群里直接发指令（如 `/github sub owner/repo`）即可完成推送订阅！
 
 **代码来源: Vibe Coding** (由 AI 智能代理自主构建)。
 
 ## 核心特性
 
-- **多协议适配 (OneBot v11 & Milky)**: 原生支持经典 OneBot v11 (正向 WebSocket，如 NapCat、LLOneBot、Lagrange) 以及新一代 [Milky 协议](https://milky.ntqqrev.org/) (HTTP API + WebSocket 事件推送，如 Milky.Net、Acidify)，支持在 Web 控制面板中自由切换与热重载。
+- **极简配置（只需填 GitHub Token）**: 零门槛开箱即用！无需独立公网 IP，无需配置域名与 SSL 证书。只要填入一个普通的 GitHub Personal Access Token（支持多 Token 轮询负载均衡），即可全自动轮询监听、精准去重并实时推送到群。
+- **多协议适配 (QQ 官方机器人 / OneBot v11 / Milky)**: 原生支持 QQ 官方开放平台机器人（WebSocket 网关长连接与 Webhook 双模式）、经典 OneBot v11 (正向 WebSocket，如 NapCat、LLOneBot、Lagrange) 以及新一代 [Milky 协议](https://milky.ntqqrev.org/) (HTTP API + WebSocket，如 Milky.Net、Acidify)，支持在 Web 控制面板中自由切换与热重载。
 - **精美图片渲染**: 使用 Puppeteer 将 GitHub 事件（提交、Issue、PR、代码审查、版本发布、Star、Fork、评论等）渲染为精致的深色模式图片卡片。
 - **Web 控制面板**: 内置响应式 Web UI（默认端口 `7890`），支持在线配置机器人协议及连接、多 GitHub Token 轮询池、查看实时日志以及可视化管理订阅关系。
 - **无需手动编辑配置**: 所有的推送目标和配置更改均可通过网页端动态完成，支持热重连。
@@ -169,7 +176,9 @@
   - **QQ 机器人开放平台 (API v2)**: 官方官方机器人，支持 WebSocket 网关长连接或 Webhook 回调推送。
   - **OneBot v11**: 如 NapCat、LLOneBot、Lagrange 等，开启正向 WebSocket 服务。
   - **Milky (v1.3+)**: 如 Milky.Net、Acidify 等，开启 HTTP API 与 `/event` WebSocket 事件推送服务。
-- 一个公网 IP 或内网穿透地址（默认 Webhook / WebUI 端口 `7890`）。
+- 网络环境要求：
+  - **极简轮询模式（推荐）**：**完全无需公网 IP 或内网穿透**（家用电脑、NAS、内网服务器即可平稳运行，仅需填入 GitHub Token）；
+  - **Webhook 模式（可选）**：如需使用 GitHub Webhook 主动推送，需要一个公网 IP 或内网穿透地址（默认端口 `7890`）。
 
 ## 安装与部署
 
@@ -187,16 +196,17 @@
    npm run build
    ```
 
-3. **准备配置**:
-   复制 `config.example.json` 为 `config.json` 并填写基础配置。若未显式指定 `protocol`，默认采用 `"onebot"`。
-
-4. **启动服务**:
+3. **启动服务**:
+   复制 `config.example.json` 为 `config.json`，运行：
    ```bash
    npm start
    ```
 
-5. **Web 控制台配置**:
-   在浏览器访问 `http://localhost:7890`。在“全局配置”中可通过顶部的胶囊单选组件一键切换通信协议（OneBot v11 / Milky），并配置对应的服务连接、GitHub Token 轮询池与推送规则（保存后即刻热重载，无需重启服务）。
+4. **Web 控制台极简配置（只需 1 步）**:
+   在浏览器访问 `http://localhost:7890`：
+   - 在“全局配置”中填入您的 **GitHub Personal Access Token**（以及配置您的机器人连接）；
+   - 点击浮动保存按钮保存生效；
+   - 接下来在 QQ 群内直接发送 `/github sub 你的仓库名`（如 `/github sub vuejs/core`），内置轮询器就会全自动开始监听并推送更新！
 
 > [!IMPORTANT]
 > **请务必在 WebUI 中设置管理密码**（全局配置 → WebUI 管理认证）。WebUI 使用 HTTP Basic Auth 进行权限拦截（默认用户名为 `admin`），防止公网环境下凭据泄露。
