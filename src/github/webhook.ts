@@ -43,12 +43,20 @@ export class GitHubWebhookServer {
 
     // Middleware to catch default or custom QQBot webhook paths
     this.app.use((req, res, next) => {
-      const custom = getConfig().qqbot?.webhook_path;
-      if (
+      const cfg = getConfig();
+      const customPaths = (cfg.bots || [])
+        .filter((b) => b.protocol === "qqbot" && b.qqbot?.webhook_path)
+        .map((b) => b.qqbot!.webhook_path!);
+      const legacyCustom = cfg.qqbot?.webhook_path;
+      if (legacyCustom) customPaths.push(legacyCustom);
+
+      const isQQBotPath =
         req.path === "/qqbot/webhook" ||
         req.path === "/api/qqbot/webhook" ||
-        (custom && req.path === custom)
-      ) {
+        req.path.startsWith("/qqbot/webhook/") ||
+        customPaths.includes(req.path);
+
+      if (isQQBotPath) {
         if (req.method === "POST") {
           return express.raw({ type: "application/json", limit: "10mb" })(
             req,

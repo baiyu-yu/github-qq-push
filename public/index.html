@@ -670,6 +670,42 @@
       border-color: rgba(88, 166, 255, 0.3);
     }
 
+    .target-bot-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 4px;
+      background: rgba(56, 139, 253, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(56, 139, 253, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .target-bot-pill.broadcast {
+      background: rgba(139, 148, 158, 0.12);
+      color: var(--text-muted);
+      border: 1px solid rgba(139, 148, 158, 0.25);
+    }
+
+    .bot-instance-card {
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      background: var(--bg);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .bot-instance-card:hover {
+      border-color: rgba(56, 139, 253, 0.4);
+      box-shadow: var(--shadow-sm);
+    }
+    .bot-instance-card.disabled {
+      opacity: 0.65;
+    }
+
     .events-cloud {
       display: flex;
       flex-wrap: wrap;
@@ -1265,6 +1301,14 @@
           </svg>
           <span>运行总览</span>
         </button>
+        <button class="tab-btn" data-tab="tab-bots" onclick="switchTab(event, 'tab-bots')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <span>协议端管理</span>
+        </button>
         <button class="tab-btn" data-tab="tab-subs" onclick="switchTab(event, 'tab-subs')">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -1342,6 +1386,25 @@
           </div>
           <div class="kpi-subtext">
             已禁用推送群组：<span id="disabled-count" style="font-weight: 600; color: var(--text);">0</span> 个
+          </div>
+        </div>
+      </div>
+
+      <!-- Bot Instances Live Status Grid -->
+      <div class="card" style="margin-top: 18px;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">协议端连接状态 (Bot Instances)</h2>
+            <div class="card-subtitle">已接入协议端的独立运行状态与在线身份</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn sm" onclick="openAddBotModal()">+ 添加协议端</button>
+            <button class="btn sm secondary" onclick="document.querySelector('[data-tab=tab-bots]').click();">管理协议端</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="overview-bots-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+            <div class="card-subtitle" style="text-align: center; padding: 14px;">加载中...</div>
           </div>
         </div>
       </div>
@@ -1438,6 +1501,29 @@
     </main>
 
     <!-- ========================================================================
+         Tab: 协议端管理 (Bot Instances Tab)
+         ======================================================================== -->
+    <main id="tab-bots" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">协议端多实例管理</h2>
+            <div class="card-subtitle">支持并发连接多台不同协议端（OneBot / Milky / QQ 开放平台），各自独立通信与生命周期</div>
+          </div>
+          <button class="btn" onclick="openAddBotModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            添加协议端
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="bots-management-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px;">
+            <div class="card-subtitle" style="text-align: center; padding: 20px;">加载中...</div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ========================================================================
          Tab 2: 订阅管理 (Subscriptions Tab)
          ======================================================================== -->
     <main id="tab-subs" class="tab-content">
@@ -1451,7 +1537,7 @@
         </div>
 
         <div class="card-body">
-          <div class="grid-3" style="align-items: flex-start;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: flex-start;">
             <div class="form-group">
               <label>代码仓库 (owner/repo) <span style="color:var(--danger)">*</span></label>
               <input id="add-repo" class="form-control" placeholder="如：baiyu-yu/github-qq-push">
@@ -1476,6 +1562,14 @@
                 </button>
               </div>
               <div class="input-hint">填入群号或好友 QQ 号</div>
+            </div>
+
+            <div class="form-group">
+              <label>绑定推送协议端 (机子)</label>
+              <select id="add-bot" class="form-control">
+                <option value="">全部协议端 (广播)</option>
+              </select>
+              <div class="input-hint">指定由哪台机子推送</div>
             </div>
           </div>
 
@@ -1994,10 +2088,140 @@
           </label>
         </div>
 
+        <div class="form-group" style="margin-top: 14px;">
+          <label style="font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block;">绑定的推送机子 (协议端)</label>
+          <select id="edit-target-bot" class="form-control" style="width: 100%;">
+            <option value="">全部协议端 (广播)</option>
+          </select>
+          <div class="input-hint">指定由哪台机子向该目标推送通知</div>
+        </div>
+
         <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--card-border);">
           <button class="btn secondary" onclick="closeEditEventsModal()">取消</button>
-          <button class="btn" onclick="saveEditedEvents()">保存事件</button>
+          <button class="btn" onclick="saveEditedEvents()">保存事件与机子</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Add / Edit Bot Instance Modal -->
+  <div class="modal-overlay" id="bot-modal" onclick="if(event.target === this) closeBotModal()">
+    <div class="modal" style="max-width: 560px;">
+      <div class="modal-header">
+        <h3 id="bot-modal-title">添加协议端实例</h3>
+        <button class="modal-close" onclick="closeBotModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px;">
+        <input type="hidden" id="bot-modal-is-edit" value="false">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>实例唯一 ID <span style="color:var(--danger)">*</span></label>
+            <input id="bot-modal-id" class="form-control" placeholder="如：onebot_main 或 bot_2">
+            <div class="input-hint">英文字母、数字或下划线</div>
+          </div>
+          <div class="form-group">
+            <label>实例名称 / 备注 <span style="color:var(--danger)">*</span></label>
+            <input id="bot-modal-name" class="form-control" placeholder="如：NapCat 主号 或 官方机器人">
+            <div class="input-hint">用于前端和通知中区分</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>接入协议类型 <span style="color:var(--danger)">*</span></label>
+          <div class="protocol-selector" id="bot-modal-protocol-selector" style="margin-top: 4px;">
+            <button type="button" class="protocol-opt active" id="bot-proto-btn-onebot" onclick="switchModalProtocol('onebot')">OneBot 11</button>
+            <button type="button" class="protocol-opt" id="bot-proto-btn-milky" onclick="switchModalProtocol('milky')">Milky</button>
+            <button type="button" class="protocol-opt" id="bot-proto-btn-qqbot" onclick="switchModalProtocol('qqbot')">QQ 官方平台</button>
+          </div>
+        </div>
+
+        <!-- OneBot Fields -->
+        <div id="bot-modal-fields-onebot" style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="form-group">
+            <label>正向 WebSocket 地址 (ws_url) <span style="color:var(--danger)">*</span></label>
+            <input id="bot-modal-ob-ws" class="form-control" placeholder="ws://127.0.0.1:3001">
+            <div class="input-hint">NapCat / LLOneBot 等开启的正向 WS 地址</div>
+          </div>
+          <div class="form-group">
+            <label>Access Token (访问令牌)</label>
+            <input id="bot-modal-ob-token" class="form-control" type="password" placeholder="未设置可留空">
+          </div>
+          <div class="form-group">
+            <label>命令前缀 (Command Prefix)</label>
+            <input id="bot-modal-ob-prefix" class="form-control" value="/">
+          </div>
+          <div class="form-group">
+            <label>管理员/主人 QQ 列表 (每行一个)</label>
+            <textarea id="bot-modal-ob-masters" class="form-control" rows="2" placeholder="一行一个 QQ 号"></textarea>
+          </div>
+        </div>
+
+        <!-- Milky Fields -->
+        <div id="bot-modal-fields-milky" style="display: none; flex-direction: column; gap: 10px;">
+          <div class="form-group">
+            <label>Milky 接口地址 (Endpoint) <span style="color:var(--danger)">*</span></label>
+            <input id="bot-modal-milky-endpoint" class="form-control" placeholder="http://127.0.0.1:3000">
+          </div>
+          <div class="form-group">
+            <label>Access Token (访问令牌)</label>
+            <input id="bot-modal-milky-token" class="form-control" type="password" placeholder="未设置可留空">
+          </div>
+          <div class="form-group">
+            <label>命令前缀 (Command Prefix)</label>
+            <input id="bot-modal-milky-prefix" class="form-control" value="/">
+          </div>
+          <div class="form-group">
+            <label>管理员/主人 QQ 列表 (每行一个)</label>
+            <textarea id="bot-modal-milky-masters" class="form-control" rows="2" placeholder="一行一个 QQ 号"></textarea>
+          </div>
+        </div>
+
+        <!-- QQBot Fields -->
+        <div id="bot-modal-fields-qqbot" style="display: none; flex-direction: column; gap: 10px;">
+          <div class="form-group">
+            <label>连接模式</label>
+            <select id="bot-modal-qqbot-mode" class="form-control">
+              <option value="ws">WebSocket Gateway 长连接 (推荐)</option>
+              <option value="webhook">Webhook HTTP 回调</option>
+            </select>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label>Bot AppID <span style="color:var(--danger)">*</span></label>
+              <input id="bot-modal-qqbot-appid" class="form-control" placeholder="QQ 开放平台 AppID">
+            </div>
+            <div class="form-group">
+              <label>AppSecret <span style="color:var(--danger)">*</span></label>
+              <input id="bot-modal-qqbot-secret" class="form-control" type="password" placeholder="平台生成的 AppSecret">
+            </div>
+          </div>
+          <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="bot-modal-qqbot-sandbox">
+              <span>启用沙箱测试环境 (sandbox)</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>命令前缀</label>
+            <input id="bot-modal-qqbot-prefix" class="form-control" value="/">
+          </div>
+          <div class="form-group">
+            <label>管理员 OpenID 列表 (每行一个)</label>
+            <textarea id="bot-modal-qqbot-masters" class="form-control" rows="2" placeholder="一行一个用户 OpenID"></textarea>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 4px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="bot-modal-enabled" checked>
+            <span style="font-weight: 600;">启用此协议端实例</span>
+          </label>
+        </div>
+      </div>
+      <div style="padding: 12px 16px; border-top: 1px solid var(--card-border); display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn secondary" type="button" onclick="closeBotModal()">取消</button>
+        <button class="btn" type="button" onclick="saveBotFromModal()">保存协议端配置</button>
       </div>
     </div>
   </div>
@@ -2007,6 +2231,41 @@
     let currentConfig = null;
     let allLogs = [];
     let authToken = localStorage.getItem("ghqq_auth_token") || "";
+    let latestStatusData = null;
+
+    function getBotDisplayName(botId) {
+      if (!botId) return "全部机子 (广播)";
+      const bots = (currentConfig && currentConfig.bots) || (latestStatusData && latestStatusData.bots) || [];
+      const bot = bots.find(b => b.id === botId);
+      if (bot) return bot.name ? `${bot.name} (${bot.id})` : bot.id;
+      return botId;
+    }
+
+    function updateBotOptions() {
+      const bots = (currentConfig && currentConfig.bots) || (latestStatusData && latestStatusData.bots) || [];
+      const optionsHtml = `<option value="">全部协议端 (广播)</option>` + bots.map(b => {
+        const label = b.name ? `${b.name} (${b.id} - ${b.protocol})` : `${b.id} (${b.protocol})`;
+        return `<option value="${escapeHtml(b.id)}">${escapeHtml(label)}</option>`;
+      }).join("");
+
+      const addBotSelect = document.getElementById("add-bot");
+      if (addBotSelect) {
+        const curVal = addBotSelect.value;
+        addBotSelect.innerHTML = optionsHtml;
+        if (curVal && Array.from(addBotSelect.options).some(o => o.value === curVal)) {
+          addBotSelect.value = curVal;
+        }
+      }
+
+      const editBotSelect = document.getElementById("edit-target-bot");
+      if (editBotSelect) {
+        const curVal = editBotSelect.value;
+        editBotSelect.innerHTML = optionsHtml;
+        if (curVal && Array.from(editBotSelect.options).some(o => o.value === curVal)) {
+          editBotSelect.value = curVal;
+        }
+      }
+    }
 
     // --- Authed Fetch Wrapper ---
     async function authedFetch(url, options = {}) {
@@ -2315,8 +2574,12 @@
         const configData = await configRes.json();
         const statusData = await statusRes.json();
         currentConfig = configData.config;
+        latestStatusData = statusData;
 
         updateStatus(statusData);
+        updateBotOptions();
+        renderOverviewBotsGrid(statusData.bots || (currentConfig && currentConfig.bots) || []);
+        renderBotsManagementTab((currentConfig && currentConfig.bots) || statusData.bots || []);
         renderTable();
         renderOverviewSubs();
 
@@ -2401,31 +2664,78 @@
       document.getElementById("uptime-display").textContent = formatUptime(statusData.uptime);
 
       const identity = document.getElementById("bot-identity");
-      if (statusData.botInfo) {
+      const protoBadge = document.getElementById("bot-proto-badge");
+
+      if (statusData.bots && statusData.bots.length > 1) {
+        const connectedCount = statusData.bots.filter(b => b.connected).length;
+        identity.innerHTML = `<b>${connectedCount}/${statusData.bots.length}</b> 台协议端已连接 <span style="font-size:12px;color:var(--text-dim);">[并发多机]</span>`;
+        if (protoBadge) protoBadge.textContent = `多协议端 (${statusData.bots.length})`;
+      } else if (statusData.botInfo) {
         identity.innerHTML = `${escapeHtml(statusData.botInfo.nickname)} <span style="font-size: 12px; color: var(--text-dim); font-family: monospace;">(${escapeHtml(statusData.botInfo.user_id)})</span>`;
+        const proto = statusData.protocol || "onebot";
+        if (protoBadge) {
+          if (proto === "milky") {
+            protoBadge.textContent = "Milky";
+          } else if (proto === "qqbot") {
+            const modeLabel = statusData.qqbotMode === "webhook" ? "Webhook" : "WS";
+            protoBadge.textContent = `QQ (${modeLabel})`;
+          } else {
+            protoBadge.textContent = "OneBot v11";
+          }
+        }
       } else {
         identity.textContent = "等待连接中...";
-      }
-
-      const proto = statusData.protocol || "onebot";
-      const protoBadge = document.getElementById("bot-proto-badge");
-      if (protoBadge) {
-        if (proto === "milky") {
-          protoBadge.textContent = "Milky";
-        } else if (proto === "qqbot") {
-          const modeLabel = statusData.qqbotMode === "webhook" ? "Webhook" : "WS";
-          protoBadge.textContent = `QQ (${modeLabel})`;
-        } else {
-          protoBadge.textContent = "OneBot v11";
+        const proto = statusData.protocol || "onebot";
+        if (protoBadge) {
+          if (proto === "milky") {
+            protoBadge.textContent = "Milky";
+          } else if (proto === "qqbot") {
+            const modeLabel = statusData.qqbotMode === "webhook" ? "Webhook" : "WS";
+            protoBadge.textContent = `QQ (${modeLabel})`;
+          } else {
+            protoBadge.textContent = "OneBot v11";
+          }
         }
       }
 
-      const st = statusData.botState || statusData.onebotState;
       const dot = document.getElementById("dot");
       const text = document.getElementById("service-status");
       const reconnect = document.getElementById("btn-reconnect");
       const stop = document.getElementById("btn-stop");
 
+      if (statusData.bots && statusData.bots.length > 1) {
+        const allConnected = statusData.bots.every(b => b.connected);
+        const anyConnected = statusData.bots.some(b => b.connected);
+        const allStopped = statusData.bots.every(b => b.stopped);
+        if (allConnected) {
+          dot.className = "dot";
+          text.textContent = `全部协议端正常运行 (${statusData.bots.length}台)`;
+          text.style.color = "var(--success)";
+          reconnect.style.display = "none";
+          stop.style.display = "none";
+        } else if (anyConnected) {
+          dot.className = "dot warning";
+          text.textContent = `部分协议端重连中 (${statusData.bots.filter(b => b.connected).length}/${statusData.bots.length} 在线)`;
+          text.style.color = "var(--warning)";
+          reconnect.style.display = "none";
+          stop.style.display = "none";
+        } else if (allStopped) {
+          dot.className = "dot offline";
+          text.textContent = "所有协议端已停止";
+          text.style.color = "var(--danger)";
+          reconnect.style.display = "inline-flex";
+          stop.style.display = "none";
+        } else {
+          dot.className = "dot warning";
+          text.textContent = "协议端连接中...";
+          text.style.color = "var(--warning)";
+          reconnect.style.display = "none";
+          stop.style.display = "inline-flex";
+        }
+        return;
+      }
+
+      const st = statusData.botState || statusData.onebotState;
       if (!st) {
         dot.className = "dot";
         text.textContent = "运行中 (Running)";
@@ -2454,6 +2764,159 @@
         reconnect.style.display = "none";
         stop.style.display = "inline-flex";
       }
+    }
+
+    function renderOverviewBotsGrid(bots) {
+      const container = document.getElementById("overview-bots-grid");
+      if (!container) return;
+      if (!bots || bots.length === 0) {
+        container.innerHTML = `<div class="card-subtitle" style="text-align: center; padding: 14px; grid-column: 1 / -1;">未配置任何协议端实例，请前往「协议端管理」添加</div>`;
+        return;
+      }
+      container.innerHTML = bots.map(b => {
+        let dotClass = "dot warning";
+        let statusText = "连接中";
+        let statusColor = "var(--warning)";
+        if (b.enabled === false) {
+          dotClass = "dot offline";
+          statusText = "已停用";
+          statusColor = "var(--text-dim)";
+        } else if (b.connected) {
+          dotClass = "dot";
+          statusText = "已连接";
+          statusColor = "var(--success)";
+        } else if (b.stopped) {
+          dotClass = "dot offline";
+          statusText = "停止重试";
+          statusColor = "var(--danger)";
+        }
+
+        const protoName = b.protocol === "qqbot" ? "QQ 官方平台" : (b.protocol === "milky" ? "Milky" : "OneBot 11");
+        const accountInfo = b.botInfo ? `${escapeHtml(b.botInfo.nickname)} (${escapeHtml(b.botInfo.user_id)})` : (b.enabled === false ? "实例已停用" : "等待连接...");
+
+        return `
+          <div style="padding: 12px 14px; border: 1px solid var(--card-border); border-radius: 8px; background: var(--bg); display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span class="${dotClass}" style="width: 8px; height: 8px; flex-shrink: 0;"></span>
+                  <span style="font-weight: 600; font-size: 14px; color: var(--text);">${escapeHtml(b.name || b.id)}</span>
+                </div>
+                <div style="font-size: 12px; color: var(--text-dim); margin-top: 2px; font-family: monospace;">ID: ${escapeHtml(b.id)}</div>
+              </div>
+              <span class="tag" style="text-transform: uppercase;">${escapeHtml(protoName)}</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--card-border); padding-top: 8px; margin-top: 2px;">
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;" title="${escapeHtml(accountInfo)}">
+                ${accountInfo}
+              </span>
+              <span style="font-size: 12px; color: ${statusColor}; font-weight: 500;">
+                ${statusText}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderBotsManagementTab(bots) {
+      const container = document.getElementById("bots-management-list");
+      if (!container) return;
+
+      const statusList = (latestStatusData && latestStatusData.bots) || [];
+      const statusMap = new Map();
+      statusList.forEach(s => statusMap.set(s.id, s));
+
+      const items = bots || [];
+      if (items.length === 0) {
+        container.innerHTML = `<div class="card-subtitle" style="grid-column: 1 / -1; text-align: center; padding: 32px;">暂未配置协议端实例，请点击右上角「添加协议端」</div>`;
+        return;
+      }
+
+      container.innerHTML = items.map(bot => {
+        const st = statusMap.get(bot.id) || {};
+        const isEnabled = bot.enabled !== false;
+        let dotClass = "dot warning";
+        let statusLabel = "连接中...";
+        let statusColor = "var(--warning)";
+
+        if (!isEnabled) {
+          dotClass = "dot offline";
+          statusLabel = "已停用 (Disabled)";
+          statusColor = "var(--text-dim)";
+        } else if (st.connected) {
+          dotClass = "dot";
+          statusLabel = "已连接 (Connected)";
+          statusColor = "var(--success)";
+        } else if (st.stopped) {
+          dotClass = "dot offline";
+          statusLabel = `重试已停止 (${st.attempts || 0}/${st.maxAttempts || 10})`;
+          statusColor = "var(--danger)";
+        } else {
+          dotClass = "dot warning";
+          statusLabel = `正在连接/重试 (${st.attempts || 0}/${st.maxAttempts || 10})`;
+          statusColor = "var(--warning)";
+        }
+
+        const protoName = bot.protocol === "qqbot" ? "QQ 官方平台" : (bot.protocol === "milky" ? "Milky" : "OneBot 11");
+
+        let detailSummary = "";
+        if (bot.protocol === "qqbot") {
+          const mode = bot.qqbot?.mode || "ws";
+          detailSummary = `模式: ${mode === 'webhook' ? 'Webhook 回调' : 'WS 长连'} | AppID: ${escapeHtml(bot.qqbot?.app_id || '-')}`;
+        } else if (bot.protocol === "milky") {
+          detailSummary = `接口: ${escapeHtml(bot.milky?.endpoint || 'http://127.0.0.1:3000')}`;
+        } else {
+          detailSummary = `WS: ${escapeHtml(bot.onebot?.ws_url || '-')}`;
+        }
+
+        const accountStr = st.botInfo ? `${escapeHtml(st.botInfo.nickname)} (${escapeHtml(st.botInfo.user_id)})` : (isEnabled ? "未获取到在线账号" : "实例已禁用");
+
+        let actionButtonsHtml = `
+          <button class="btn sm secondary" onclick="openEditBotModal('${escapeHtml(bot.id)}')">编辑配置</button>
+        `;
+        if (isEnabled) {
+          if (st.connected || st.stopped) {
+            actionButtonsHtml += `<button class="btn sm secondary" onclick="reconnectBotInstance('${escapeHtml(bot.id)}')">重连</button>`;
+          } else {
+            actionButtonsHtml += `<button class="btn sm secondary" onclick="stopBotInstance('${escapeHtml(bot.id)}')">停止</button>`;
+          }
+        }
+        actionButtonsHtml += `<button class="btn sm danger" onclick="deleteBotInstance('${escapeHtml(bot.id)}')">删除</button>`;
+
+        return `
+          <div class="bot-instance-card">
+            <div class="bot-card-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="${dotClass}" style="width: 10px; height: 10px; flex-shrink: 0;"></span>
+                <div>
+                  <div style="font-weight: 600; font-size: 15px; color: var(--text);">${escapeHtml(bot.name || bot.id)}</div>
+                  <div style="font-size: 12px; color: var(--text-dim); font-family: monospace;">ID: ${escapeHtml(bot.id)}</div>
+                </div>
+              </div>
+              <span class="tag" style="text-transform: uppercase;">${escapeHtml(protoName)}</span>
+            </div>
+
+            <div style="padding: 10px 14px; font-size: 12.5px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-dim);">运行状态</span>
+                <span style="color: ${statusColor}; font-weight: 600;">${statusLabel}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-dim);">账号/昵称</span>
+                <span style="color: var(--text); font-family: monospace;">${accountStr}</span>
+              </div>
+              <div style="color: var(--text-dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-top: 1px dashed var(--card-border); padding-top: 6px; margin-top: 2px;" title="${escapeHtml(detailSummary)}">
+                ${detailSummary}
+              </div>
+            </div>
+
+            <div class="bot-card-actions">
+              ${actionButtonsHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
     async function triggerAction(action) {
@@ -2545,15 +3008,20 @@
             : '<span class="card-subtitle" style="font-size:11px;">无事件</span>';
           
           const isGroup = target.type === "group";
+          const botPill = target.botId
+            ? `<span class="target-bot-pill">🤖 ${escapeHtml(getBotDisplayName(target.botId))}</span>`
+            : `<span class="target-bot-pill broadcast">🌐 全部协议端 (广播)</span>`;
+
           return `
             <div class="target-item">
               <div class="target-item-top">
                 <div class="target-badge">
                   <span class="target-type-pill ${isGroup ? 'group' : 'private'}">${isGroup ? '群聊' : '私聊'}</span>
                   <span style="font-family: monospace;">${escapeHtml(target.id)}</span>
+                  ${botPill}
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                  <button class="btn sm secondary" onclick="openEditEventsModal(${repoIdx}, ${targetIdx})">编辑事件</button>
+                  <button class="btn sm secondary" onclick="openEditEventsModal(${repoIdx}, ${targetIdx})">编辑</button>
                   <button class="btn sm danger" onclick="removeTarget(${repoIdx}, ${targetIdx})">移除</button>
                 </div>
               </div>
@@ -2604,7 +3072,10 @@
                 ${escapeHtml(sub.repo)}
               </div>
               <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 4px; flex-wrap: wrap;">
-                ${(sub.targets || []).map(t => `<span class="tag">${escapeHtml(t.type)}: ${escapeHtml(t.id)}</span>`).join("")}
+                ${(sub.targets || []).map(t => {
+                  const bName = t.botId ? getBotDisplayName(t.botId) : "全部机子";
+                  return `<span class="tag">${escapeHtml(t.type)}: ${escapeHtml(t.id)} <span style="opacity:0.8;">[${escapeHtml(bName)}]</span></span>`;
+                }).join("")}
               </div>
             </div>
           `).join("")}
@@ -2845,6 +3316,7 @@
       const repo = document.getElementById("add-repo").value.trim();
       const type = document.getElementById("add-type").value;
       const id = document.getElementById("add-id").value.trim();
+      const botId = document.getElementById("add-bot") ? document.getElementById("add-bot").value.trim() : "";
       
       if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo) || !id) {
         showToast("格式错误：代码仓库需为 owner/repo，且目标 ID 不能为空。", "error");
@@ -2860,8 +3332,8 @@
         currentConfig.subscriptions.push(sub);
       }
 
-      if (!sub.targets.some(target => target.type === type && target.id === id)) {
-        sub.targets.push({
+      if (!sub.targets.some(target => target.type === type && target.id === id && (target.botId || "") === (botId || ""))) {
+        const newTarget = {
           type,
           id,
           events: [
@@ -2877,10 +3349,13 @@
             "commit_comment",
             "edited",
           ],
-        });
-        showToast(`已添加订阅：${repo} -> ${type}:${id}`);
+        };
+        if (botId) newTarget.botId = botId;
+        sub.targets.push(newTarget);
+        const botHint = botId ? ` [绑定机子: ${getBotDisplayName(botId)}]` : "";
+        showToast(`已添加订阅：${repo} -> ${type}:${id}${botHint}`);
       } else {
-        showToast("该推送目标已存在于此代码仓库", "info");
+        showToast("该推送目标在此协议端上已存在订阅", "info");
       }
 
       document.getElementById("add-repo").value = "";
@@ -2903,11 +3378,16 @@
       container.innerHTML = `<div class="card-subtitle" style="text-align: center; padding: 20px;">正在请求群列表...</div>`;
       
       try {
-        const res = await authedFetch("/api/groups");
+        let url = "/api/groups";
+        const chosenBot = document.getElementById("add-bot")?.value;
+        if (chosenBot) {
+          url = `/api/bots/${encodeURIComponent(chosenBot)}/groups`;
+        }
+        const res = await authedFetch(url);
         cachedGroups = await res.json();
         filterGroups();
       } catch (e) {
-        container.innerHTML = `<div class="card-subtitle" style="color:var(--danger); text-align:center; padding: 20px;">获取失败，请确认机器人已连接。</div>`;
+        container.innerHTML = `<div class="card-subtitle" style="color:var(--danger); text-align:center; padding: 20px;">获取失败，请确认协议端已连接。</div>`;
       }
     }
 
@@ -2962,6 +3442,11 @@
       document.getElementById("edit-repo-name").textContent = sub.repo;
       document.getElementById("edit-target-name").textContent = `${target.type}: ${target.id}`;
       
+      const botSelect = document.getElementById("edit-target-bot");
+      if (botSelect) {
+        botSelect.value = target.botId || "";
+      }
+
       document.querySelectorAll(".event-checkbox").forEach(cb => {
         cb.checked = (target.events || []).includes(cb.value);
       });
@@ -2997,8 +3482,242 @@
       }
       
       currentConfig.subscriptions[editingRepoIndex].targets[editingTargetIndex].events = selectedEvents;
+
+      const botSelect = document.getElementById("edit-target-bot");
+      if (botSelect) {
+        const chosenBot = botSelect.value.trim();
+        if (chosenBot) {
+          currentConfig.subscriptions[editingRepoIndex].targets[editingTargetIndex].botId = chosenBot;
+        } else {
+          delete currentConfig.subscriptions[editingRepoIndex].targets[editingTargetIndex].botId;
+        }
+      }
+
       closeEditEventsModal();
       pushConfigUpdate();
+    }
+
+    // --- Bot Instance Modal & Operations ---
+    let currentModalProtocol = "onebot";
+
+    function switchModalProtocol(proto) {
+      currentModalProtocol = proto;
+      const btnOb = document.getElementById("bot-proto-btn-onebot");
+      const btnMilky = document.getElementById("bot-proto-btn-milky");
+      const btnQQ = document.getElementById("bot-proto-btn-qqbot");
+      if (btnOb) btnOb.classList.toggle("active", proto === "onebot");
+      if (btnMilky) btnMilky.classList.toggle("active", proto === "milky");
+      if (btnQQ) btnQQ.classList.toggle("active", proto === "qqbot");
+
+      const secOb = document.getElementById("bot-modal-fields-onebot");
+      const secMilky = document.getElementById("bot-modal-fields-milky");
+      const secQQ = document.getElementById("bot-modal-fields-qqbot");
+      if (secOb) secOb.style.display = proto === "onebot" ? "flex" : "none";
+      if (secMilky) secMilky.style.display = proto === "milky" ? "flex" : "none";
+      if (secQQ) secQQ.style.display = proto === "qqbot" ? "flex" : "none";
+    }
+
+    function openAddBotModal() {
+      document.getElementById("bot-modal-title").textContent = "添加协议端实例";
+      document.getElementById("bot-modal-is-edit").value = "false";
+      const idInput = document.getElementById("bot-modal-id");
+      idInput.value = "";
+      idInput.readOnly = false;
+      idInput.style.opacity = "1";
+      document.getElementById("bot-modal-name").value = "";
+      document.getElementById("bot-modal-enabled").checked = true;
+
+      // Reset OneBot fields
+      document.getElementById("bot-modal-ob-ws").value = "ws://127.0.0.1:3001";
+      document.getElementById("bot-modal-ob-token").value = "";
+      document.getElementById("bot-modal-ob-prefix").value = "/";
+      document.getElementById("bot-modal-ob-masters").value = "";
+
+      // Reset Milky fields
+      document.getElementById("bot-modal-milky-endpoint").value = "http://127.0.0.1:3000";
+      document.getElementById("bot-modal-milky-token").value = "";
+      document.getElementById("bot-modal-milky-prefix").value = "/";
+      document.getElementById("bot-modal-milky-masters").value = "";
+
+      // Reset QQBot fields
+      document.getElementById("bot-modal-qqbot-mode").value = "ws";
+      document.getElementById("bot-modal-qqbot-appid").value = "";
+      document.getElementById("bot-modal-qqbot-secret").value = "";
+      document.getElementById("bot-modal-qqbot-sandbox").checked = false;
+      document.getElementById("bot-modal-qqbot-prefix").value = "/";
+      document.getElementById("bot-modal-qqbot-masters").value = "";
+
+      switchModalProtocol("onebot");
+      document.getElementById("bot-modal").classList.add("active");
+    }
+
+    function openEditBotModal(botId) {
+      const bots = (currentConfig && currentConfig.bots) || (latestStatusData && latestStatusData.bots) || [];
+      const bot = bots.find(b => b.id === botId);
+      if (!bot) {
+        showToast("未找到指定协议端实例", "error");
+        return;
+      }
+
+      document.getElementById("bot-modal-title").textContent = `编辑协议端: ${bot.name || bot.id}`;
+      document.getElementById("bot-modal-is-edit").value = "true";
+      const idInput = document.getElementById("bot-modal-id");
+      idInput.value = bot.id;
+      idInput.readOnly = true;
+      idInput.style.opacity = "0.7";
+      document.getElementById("bot-modal-name").value = bot.name || "";
+      document.getElementById("bot-modal-enabled").checked = bot.enabled !== false;
+
+      const proto = bot.protocol || "onebot";
+      switchModalProtocol(proto);
+
+      if (proto === "onebot") {
+        const ob = bot.onebot || {};
+        document.getElementById("bot-modal-ob-ws").value = ob.ws_url || "";
+        document.getElementById("bot-modal-ob-token").value = ob.access_token || "";
+        document.getElementById("bot-modal-ob-prefix").value = ob.command_prefix || "/";
+        document.getElementById("bot-modal-ob-masters").value = (ob.masters || []).join("\n");
+      } else if (proto === "milky") {
+        const mk = bot.milky || {};
+        document.getElementById("bot-modal-milky-endpoint").value = mk.endpoint || "http://127.0.0.1:3000";
+        document.getElementById("bot-modal-milky-token").value = mk.access_token || "";
+        document.getElementById("bot-modal-milky-prefix").value = mk.command_prefix || "/";
+        document.getElementById("bot-modal-milky-masters").value = (mk.masters || []).join("\n");
+      } else if (proto === "qqbot") {
+        const qq = bot.qqbot || {};
+        document.getElementById("bot-modal-qqbot-mode").value = qq.mode || "ws";
+        document.getElementById("bot-modal-qqbot-appid").value = qq.app_id || "";
+        document.getElementById("bot-modal-qqbot-secret").value = qq.app_secret || "";
+        document.getElementById("bot-modal-qqbot-sandbox").checked = !!qq.sandbox;
+        document.getElementById("bot-modal-qqbot-prefix").value = qq.command_prefix || "/";
+        document.getElementById("bot-modal-qqbot-masters").value = (qq.masters || []).join("\n");
+      }
+
+      document.getElementById("bot-modal").classList.add("active");
+    }
+
+    function closeBotModal() {
+      document.getElementById("bot-modal").classList.remove("active");
+    }
+
+    async function saveBotFromModal() {
+      const isEdit = document.getElementById("bot-modal-is-edit").value === "true";
+      const id = document.getElementById("bot-modal-id").value.trim();
+      const name = document.getElementById("bot-modal-name").value.trim();
+      const enabled = document.getElementById("bot-modal-enabled").checked;
+      const protocol = currentModalProtocol;
+
+      if (!id || !/^[\w-]+$/.test(id)) {
+        showToast("实例 ID 不能为空且仅能包含英文、数字、下划线与连字符", "error");
+        return;
+      }
+      if (!name) {
+        showToast("请输入实例名称或备注", "error");
+        return;
+      }
+
+      const botConfig = {
+        id,
+        name,
+        protocol,
+        enabled,
+      };
+
+      if (protocol === "onebot") {
+        const ws_url = document.getElementById("bot-modal-ob-ws").value.trim();
+        if (!ws_url) {
+          showToast("OneBot 正向 WebSocket 地址不能为空", "error");
+          return;
+        }
+        botConfig.onebot = {
+          ws_url,
+          access_token: document.getElementById("bot-modal-ob-token").value,
+          command_prefix: document.getElementById("bot-modal-ob-prefix").value || "/",
+          masters: document.getElementById("bot-modal-ob-masters").value.split(/[\s,]+/).map(s => s.trim()).filter(Boolean),
+        };
+      } else if (protocol === "milky") {
+        const endpoint = document.getElementById("bot-modal-milky-endpoint").value.trim();
+        if (!endpoint) {
+          showToast("Milky 接口地址不能为空", "error");
+          return;
+        }
+        botConfig.milky = {
+          endpoint,
+          access_token: document.getElementById("bot-modal-milky-token").value,
+          command_prefix: document.getElementById("bot-modal-milky-prefix").value || "/",
+          masters: document.getElementById("bot-modal-milky-masters").value.split(/[\s,]+/).map(s => s.trim()).filter(Boolean),
+        };
+      } else if (protocol === "qqbot") {
+        const app_id = document.getElementById("bot-modal-qqbot-appid").value.trim();
+        const app_secret = document.getElementById("bot-modal-qqbot-secret").value.trim();
+        if (!app_id || !app_secret) {
+          showToast("QQ 开放平台 AppID 和 AppSecret 不能为空", "error");
+          return;
+        }
+        botConfig.qqbot = {
+          mode: document.getElementById("bot-modal-qqbot-mode").value || "ws",
+          app_id,
+          app_secret,
+          sandbox: document.getElementById("bot-modal-qqbot-sandbox").checked,
+          command_prefix: document.getElementById("bot-modal-qqbot-prefix").value || "/",
+          masters: document.getElementById("bot-modal-qqbot-masters").value.split(/[\s,]+/).map(s => s.trim()).filter(Boolean),
+        };
+      }
+
+      try {
+        const url = isEdit ? `/api/bots/${encodeURIComponent(id)}` : "/api/bots";
+        const method = isEdit ? "PUT" : "POST";
+        const res = await authedFetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(botConfig),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "保存失败");
+
+        showToast(isEdit ? `协议端实例 ${id} 配置已更新` : `已添加协议端实例: ${name}`);
+        closeBotModal();
+        loadData();
+      } catch (err) {
+        showToast(`保存失败: ${err.message}`, "error");
+      }
+    }
+
+    async function deleteBotInstance(botId) {
+      if (!confirm(`确定删除协议端实例 "${botId}" 吗？该操作不可撤销。`)) return;
+      try {
+        const res = await authedFetch(`/api/bots/${encodeURIComponent(botId)}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "删除失败");
+        showToast(`已删除协议端实例: ${botId}`, "info");
+        loadData();
+      } catch (err) {
+        showToast(`删除失败: ${err.message}`, "error");
+      }
+    }
+
+    async function reconnectBotInstance(botId) {
+      try {
+        const res = await authedFetch(`/api/bots/${encodeURIComponent(botId)}/reconnect`, { method: "POST" });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "操作失败");
+        showToast(`已触发实例 ${botId} 重连`, "info");
+        loadData();
+      } catch (err) {
+        showToast(`重连失败: ${err.message}`, "error");
+      }
+    }
+
+    async function stopBotInstance(botId) {
+      try {
+        const res = await authedFetch(`/api/bots/${encodeURIComponent(botId)}/stop`, { method: "POST" });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "操作失败");
+        showToast(`已停止实例 ${botId} 重试`, "info");
+        loadData();
+      } catch (err) {
+        showToast(`停止失败: ${err.message}`, "error");
+      }
     }
 
     // --- Initialization ---

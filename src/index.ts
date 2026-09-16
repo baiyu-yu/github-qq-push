@@ -5,6 +5,7 @@ import { loadConfig, getConfig } from "./config";
 import { initState } from "./state";
 import { IBotClient } from "./bot/types";
 import { createBotClient } from "./bot/factory";
+import { BotManager } from "./bot/manager";
 import { GitHubWebhookServer } from "./github/webhook";
 import { initGitHubApi } from "./github/api";
 import { GitHubEventPoller } from "./github/poller";
@@ -97,31 +98,75 @@ async function main() {
   console.log("[Main] Initializing renderer...");
   await initRenderer();
 
-  // 4. Create and connect Bot client (OneBot or Milky)
-  let bot: IBotClient = createBotClient(config);
-  bot.onMessageCallback = async (msg) => {
-    await handleMessage(msg, bot);
-  };
-  bot.connect();
+  // 4. Create and connect Bot Manager (Multi-instance concurrent bots)
+  const botManager = new BotManager(config.bots);
+  botManager.setMessageHandler(async (msg, clientBot) => {
+    await handleMessage(msg, clientBot);
+  });
+  botManager.connect();
 
   // 5. Create and start webhook server (also serves WebUI)
   const webhookServer = new GitHubWebhookServer();
 
-  const updateBotWebhookRouting = (client: IBotClient) => {
-    if (client.protocol === "qqbot") {
-      webhookServer.onQQBotWebhook((req, res) => {
+  const updateBotWebhookRouting = () => {
+    webhookServer.onQQBotWebhook(async (req, res) => {
+      const pathParts = req.path.split("/").filter(Boolean);
+      let targetBotId: string | undefined;
+      if (pathParts[0] === "qqbot" && pathParts[1] === "webhook" && pathParts[2]) {
+        targetBotId = pathParts[2];
+      }
+      if (!targetBotId && req.query.bot) {
+        targetBotId = String(req.query.bot);
+      }
+
+      const allBots = botManager.getAllBots().filter((b) => b.protocol === "qqbot");
+      if (allBots.length === 0) {
+        return res.status(503).json({ error: "No active QQBot instances" });
+      }
+
+      if (targetBotId) {
+        const targetBot = botManager.getBot(targetBotId);
         // @ts-ignore
-        if (typeof client.handleWebhookRequest === "function") {
+        if (targetBot && typeof targetBot.handleWebhookRequest === "function") {
           // @ts-ignore
-          return client.handleWebhookRequest(req, res);
+          return targetBot.handleWebhookRequest(req, res);
         }
-        res.status(500).json({ error: "QQBot client cannot handle webhook" });
-      });
-    } else {
-      webhookServer.onQQBotWebhook(null);
-    }
+        return res.status(404).json({ error: `QQBot instance ${targetBotId} not found` });
+      }
+
+      if (allBots.length === 1) {
+        // @ts-ignore
+        return allBots[0].handleWebhookRequest(req, res);
+      }
+
+      // Match by payload app_id
+      try {
+        const bodyBuf = Buffer.isBuffer(req.body)
+          ? req.body
+          : Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body || {}));
+        const json = JSON.parse(bodyBuf.toString("utf8"));
+        const appId = json.d?.bot_appid || json.d?.app_id || json.app_id;
+        if (appId) {
+          const matched = botManager.getAllConfigs().find(
+            (c) => c.protocol === "qqbot" && c.qqbot?.app_id === String(appId)
+          );
+          if (matched) {
+            const client = botManager.getBot(matched.id);
+            // @ts-ignore
+            if (client && typeof client.handleWebhookRequest === "function") {
+              // @ts-ignore
+              return client.handleWebhookRequest(req, res);
+            }
+          }
+        }
+      } catch (e) {}
+
+      // Fallback: first active QQBot
+      // @ts-ignore
+      return allBots[0].handleWebhookRequest(req, res);
+    });
   };
-  updateBotWebhookRouting(bot);
+  updateBotWebhookRouting();
 
   // Attach WebUI routes and static files to the same Express app
   // @ts-ignore - access private app field since it's an internal server
@@ -131,19 +176,16 @@ async function main() {
   app.use(express.json());
 
   webhookServer.onEvent(async (event, payload) => {
-    await routeEvent(event, payload, bot);
+    await routeEvent(event, payload, botManager);
   });
 
   // 6. Start event poller if enabled
-  const poller = new GitHubEventPoller(bot);
+  const poller = new GitHubEventPoller(botManager);
 
   app.use(
     getWebUIRouter({
-      getBot: () => bot,
-      setBot: (newBot) => {
-        bot = newBot;
-        updateBotWebhookRouting(newBot);
-      },
+      bot: botManager,
+      botManager,
       poller,
       webhookServer,
     })
@@ -164,24 +206,9 @@ async function main() {
   console.log(
     `[Main] WebUI Control Panel: http://localhost:${config.github.webhook_port}/`
   );
-  const proto = config.protocol || "onebot";
-  if (proto === "milky") {
-    console.log(
-      `[Main] Protocol: Milky (${config.milky?.endpoint || "http://127.0.0.1:3000"})`
-    );
-  } else if (proto === "qqbot") {
-    const qqCfg = config.qqbot;
-    const mode = qqCfg?.mode === "webhook" ? "Webhook" : "WebSocket Gateway";
-    console.log(
-      `[Main] Protocol: QQ 机器人开放平台 API v2 [${mode}] (AppID: ${qqCfg?.app_id || "未配置"})`
-    );
-    if (qqCfg?.mode === "webhook") {
-      console.log(
-        `[Main] QQBot Webhook: http://0.0.0.0:${config.github.webhook_port}${qqCfg.webhook_path || "/qqbot/webhook"}`
-      );
-    }
-  } else {
-    console.log(`[Main] Protocol: OneBot WS (${config.onebot.ws_url})`);
+  console.log(`[Main] Active Bot Instances: ${botManager.getAllBots().length}`);
+  for (const b of botManager.getAllConfigs()) {
+    console.log(`  - [${b.protocol.toUpperCase()}] ${b.name} (${b.id}) [${b.enabled !== false ? '已启用' : '已停用'}]`);
   }
   console.log(
     `[Main] Subscriptions: ${config.subscriptions.length} repo(s) configured`
@@ -194,7 +221,7 @@ async function main() {
   // Graceful shutdown
   const shutdown = async () => {
     console.log("\n[Main] Shutting down...");
-    bot.disconnect();
+    botManager.disconnect();
     poller.stop();
     await closeRenderer();
     process.exit(0);

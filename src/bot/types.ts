@@ -24,6 +24,8 @@ export interface SendMessageOptions {
 }
 
 export interface IBotClient {
+  readonly id: string;
+  readonly name: string;
   readonly protocol: "onebot" | "milky" | "qqbot";
   
   connect(): void;
@@ -58,13 +60,13 @@ export interface IBotClient {
   ): Promise<void>;
 
   sendImageToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     imageBase64: string,
     fallbackText?: string,
     options?: SendMessageOptions
   ): Promise<void>;
   sendTextToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     text: string,
     options?: SendMessageOptions
   ): Promise<void>;

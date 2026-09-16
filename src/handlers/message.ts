@@ -115,6 +115,28 @@ function stripCqCodes(raw: string): string {
 
 function getBotSettings(bot: IBotClient) {
   const cfg = getConfig();
+  const instance = cfg.bots?.find((b) => b.id === bot.id);
+  if (instance) {
+    if (instance.protocol === "milky" && instance.milky) {
+      return {
+        command_prefix: instance.milky.command_prefix || "/",
+        masters: instance.milky.masters || [],
+      };
+    }
+    if (instance.protocol === "qqbot" && instance.qqbot) {
+      return {
+        command_prefix: instance.qqbot.command_prefix || "/",
+        masters: instance.qqbot.masters || [],
+      };
+    }
+    if (instance.protocol === "onebot" && instance.onebot) {
+      return {
+        command_prefix: instance.onebot.command_prefix || "/",
+        masters: instance.onebot.masters || [],
+      };
+    }
+  }
+
   if (bot.protocol === "milky" && cfg.milky) {
     return {
       command_prefix: cfg.milky.command_prefix || "/",
@@ -381,12 +403,13 @@ export async function handleMessage(
       addSubscription(canonicalName, events, {
         type: messageType === "group" ? "group" : "private",
         id: targetId,
+        botId: bot.id,
       });
       await sendText(
         bot,
         messageType,
         targetId,
-        `订阅成功: ${canonicalName}\n已订阅事件: ${events.join(", ")}`
+        `订阅成功: ${canonicalName}\n绑定协议端: ${bot.name || bot.id}\n已订阅事件: ${events.join(", ")}`
       );
       return;
     }
@@ -406,7 +429,7 @@ export async function handleMessage(
       const eventsToRemove = parts.slice(3).join(",").split(/[\s,]+/).filter(Boolean);
       const result = removeSubscription(
         targetRepo,
-        { type: messageType === "group" ? "group" : "private", id: targetId },
+        { type: messageType === "group" ? "group" : "private", id: targetId, botId: bot.id },
         eventsToRemove.length > 0 ? eventsToRemove : undefined
       );
 
@@ -436,15 +459,16 @@ export async function handleMessage(
     const subs = listSubscriptions({
       type: messageType === "group" ? "group" : "private",
       id: targetId,
+      botId: bot.id,
     });
     if (subs.length === 0) {
-      await sendText(bot, messageType, targetId, "暂无 GitHub 订阅。");
+      await sendText(bot, messageType, targetId, `[${bot.name || bot.id}] 暂无 GitHub 订阅。`);
       return;
     }
     const listText = subs
       .map((s) => `- ${s.repo} (${s.events.join(", ")})`)
       .join("\n");
-    await sendText(bot, messageType, targetId, `当前订阅列表:\n${listText}`);
+    await sendText(bot, messageType, targetId, `[${bot.name || bot.id}] 当前订阅列表:\n${listText}`);
     return;
   }
 
@@ -454,6 +478,7 @@ export async function handleMessage(
     const subs = listSubscriptions({
       type: messageType === "group" ? "group" : "private",
       id: targetId,
+      botId: bot.id,
     });
     if (subs.length === 1) {
       console.log(`[Message] Matches #number shortcut for bound repo ${subs[0].repo}`);

@@ -47,6 +47,18 @@ export interface RenderConfig {
   max_screenshot_height?: number; // Full-page screenshot safety cap, default 30000 (0 = up to hard ceiling)
 }
 
+export type BotProtocol = "onebot" | "milky" | "qqbot";
+
+export interface BotInstanceConfig {
+  id: string; // Unique instance ID, e.g. "default", "bot_1", "qqbot"
+  name: string; // Friendly name, e.g. "OneBot 默认实例", "NapCat 2号", "QQ官方机器人"
+  protocol: BotProtocol;
+  enabled?: boolean; // Default true
+  onebot?: OneBotConfig;
+  milky?: MilkyConfig;
+  qqbot?: QQBotConfig;
+}
+
 export interface SubscriptionTarget {
   type: "group" | "private";
   id: string;
@@ -55,6 +67,11 @@ export interface SubscriptionTarget {
    * Undefined/empty = legacy default events (kept for backward compatibility).
    */
   events?: string[];
+  /**
+   * Bound bot instance ID (e.g. "default", "bot_1").
+   * Undefined/empty = all bots or legacy default bot.
+   */
+  botId?: string;
 }
 
 export interface Subscription {
@@ -70,6 +87,7 @@ export interface WebUIConfig {
 }
 
 export interface AppConfig {
+  bots: BotInstanceConfig[];
   protocol?: "onebot" | "milky" | "qqbot";
   onebot: OneBotConfig;
   milky?: MilkyConfig;
@@ -220,8 +238,97 @@ export function loadConfig(): AppConfig {
     }
   }
 
+  // Ensure config.bots is initialized and populated from legacy config if missing
+  if (!config.bots || !Array.isArray(config.bots) || config.bots.length === 0) {
+    const proto = config.protocol || "onebot";
+    if (proto === "milky") {
+      config.bots = [
+        {
+          id: "milky",
+          name: "Milky 适配器",
+          protocol: "milky",
+          enabled: true,
+          milky: config.milky,
+        },
+      ];
+    } else if (proto === "qqbot") {
+      config.bots = [
+        {
+          id: "qqbot",
+          name: "QQ 官方机器人",
+          protocol: "qqbot",
+          enabled: true,
+          qqbot: config.qqbot,
+        },
+      ];
+    } else {
+      config.bots = [
+        {
+          id: "default",
+          name: "OneBot 默认实例",
+          protocol: "onebot",
+          enabled: true,
+          onebot: config.onebot,
+        },
+      ];
+    }
+  }
+
+  // Normalize each bot in config.bots
+  for (const bot of config.bots) {
+    if (bot.enabled === undefined) bot.enabled = true;
+    if (!bot.name) bot.name = bot.id;
+    if (bot.protocol === "onebot") {
+      bot.onebot = bot.onebot || {
+        ws_url: "ws://127.0.0.1:3001",
+        access_token: "",
+        command_prefix: "/",
+        masters: [],
+      };
+      if (!bot.onebot.command_prefix) bot.onebot.command_prefix = "/";
+      if (!bot.onebot.masters) bot.onebot.masters = [];
+    } else if (bot.protocol === "milky") {
+      bot.milky = bot.milky || {
+        endpoint: "http://127.0.0.1:3000",
+        access_token: "",
+        command_prefix: "/",
+        masters: [],
+      };
+      if (!bot.milky.endpoint) bot.milky.endpoint = "http://127.0.0.1:3000";
+      if (!bot.milky.command_prefix) bot.milky.command_prefix = "/";
+      if (!bot.milky.masters) bot.milky.masters = [];
+    } else if (bot.protocol === "qqbot") {
+      bot.qqbot = bot.qqbot || {
+        mode: "ws",
+        app_id: "",
+        app_secret: "",
+        sandbox: false,
+        webhook_path: "/qqbot/webhook",
+        intents: 1 << 25,
+        command_prefix: "/",
+        masters: [],
+      };
+      if (!bot.qqbot.mode) bot.qqbot.mode = "ws";
+      if (!bot.qqbot.command_prefix) bot.qqbot.command_prefix = "/";
+      if (!bot.qqbot.masters) bot.qqbot.masters = [];
+    }
+  }
+
+  // Synchronize primary bot to legacy fields for backward compatibility
+  const primaryBot = config.bots[0];
+  if (primaryBot) {
+    config.protocol = primaryBot.protocol;
+    if (primaryBot.protocol === "onebot" && primaryBot.onebot) {
+      config.onebot = primaryBot.onebot;
+    } else if (primaryBot.protocol === "milky" && primaryBot.milky) {
+      config.milky = primaryBot.milky;
+    } else if (primaryBot.protocol === "qqbot" && primaryBot.qqbot) {
+      config.qqbot = primaryBot.qqbot;
+    }
+  }
+
   console.log(
-    `[Config] Loaded ${config.subscriptions.length} subscription(s)`
+    `[Config] Loaded ${config.subscriptions.length} subscription(s), ${config.bots.length} bot instance(s)`
   );
   return config;
 }
@@ -271,10 +378,10 @@ export function findSubscribers(
     }
   }
   
-  // Deduplicate and filter out disabled targets
+  // Deduplicate and filter out disabled targets (keyed by type, id, and botId)
   const uniqueTargets = new Map<string, SubscriptionTarget>();
   for (const t of targets) {
-    const key = `${t.type}:${t.id}`;
+    const key = `${t.type}:${t.id}:${t.botId || ""}`;
     if (!uniqueTargets.has(key) && !isTargetDisabled(t.type, t.id)) {
       uniqueTargets.set(key, t);
     }
@@ -297,16 +404,23 @@ export function addSubscription(
   }
 
   let existingTarget = sub.targets.find(
-    (t) => t.type === target.type && t.id === target.id
+    (t) =>
+      t.type === target.type &&
+      t.id === target.id &&
+      (!target.botId || !t.botId || t.botId === target.botId)
   );
   if (!existingTarget) {
     existingTarget = {
       type: target.type,
       id: target.id,
+      botId: target.botId,
       events: [...events],
     };
     sub.targets.push(existingTarget);
   } else {
+    if (target.botId && !existingTarget.botId) {
+      existingTarget.botId = target.botId;
+    }
     // Merge events for this target only
     const eventSet = new Set([...(existingTarget.events || []), ...events]);
     existingTarget.events = Array.from(eventSet);
@@ -329,7 +443,10 @@ export function removeSubscription(
 
   const sub = config.subscriptions[subIndex];
   const targetIndex = sub.targets.findIndex(
-    (t) => t.type === target.type && t.id === target.id
+    (t) =>
+      t.type === target.type &&
+      t.id === target.id &&
+      (!target.botId || !t.botId || t.botId === target.botId)
   );
 
   if (targetIndex === -1) return { success: false }; // not subscribed
@@ -384,7 +501,10 @@ export function listSubscriptions(target: SubscriptionTarget): { repo: string; e
   const result: { repo: string; events: string[] }[] = [];
   for (const sub of config.subscriptions) {
     const matchingTarget = sub.targets.find(
-      (t) => t.type === target.type && t.id === target.id
+      (t) =>
+        t.type === target.type &&
+        t.id === target.id &&
+        (!target.botId || !t.botId || t.botId === target.botId)
     );
     if (matchingTarget) {
       result.push({ repo: sub.repo, events: matchingTarget.events || [] });

@@ -1,9 +1,10 @@
 import { Router } from "express";
 import * as crypto from "crypto";
-import { getConfig } from "../config";
+import { getConfig, BotInstanceConfig } from "../config";
 import { getState, saveConfig } from "../state";
 import { IBotClient } from "../bot/types";
 import { createBotClient } from "../bot/factory";
+import { BotManager } from "../bot/manager";
 import { handleMessage } from "../handlers/message";
 import { getLogs } from "../logger";
 import { serviceStartTime } from "../utils";
@@ -23,6 +24,7 @@ function safeEqualStrings(a: string, b: string): boolean {
 
 export interface WebUIDeps {
   bot?: IBotClient;
+  botManager?: BotManager;
   getBot?: () => IBotClient;
   setBot?: (bot: IBotClient) => void;
   poller: GitHubEventPoller;
@@ -40,6 +42,13 @@ export function getWebUIRouter(deps: WebUIDeps) {
     } else {
       localBot = b;
     }
+  };
+
+  const getBotManager = (): BotManager | undefined => {
+    if (deps.botManager) return deps.botManager;
+    const cur = getCurrentBot();
+    if (cur instanceof BotManager) return cur;
+    return undefined;
   };
 
   // Auth status endpoint
@@ -215,29 +224,42 @@ export function getWebUIRouter(deps: WebUIDeps) {
       // Re-initialize GitHub API to apply new tokens dynamically
       initGitHubApi(newConfig.github);
 
-      // Handle Bot client update or hot-swap protocol
-      const currentBot = getCurrentBot();
-      if (proto !== oldProto) {
-        console.log(`[WebUI] Switching bot protocol from ${oldProto} to ${proto}...`);
-        if (currentBot) {
-          currentBot.disconnect();
+      // Handle Bot client update
+      const botMgr = getBotManager();
+      if (Array.isArray(newConfig.bots) && newConfig.bots.length > 0 && botMgr) {
+        const newBotIds = new Set(newConfig.bots.map((b: any) => b.id));
+        for (const b of newConfig.bots) {
+          botMgr.updateBot(b);
         }
-        const newBot = createBotClient(newConfig);
-        newBot.onMessageCallback = async (msg) => {
-          await handleMessage(msg, newBot);
-        };
-        newBot.connect();
-        setCurrentBot(newBot);
-        if (deps.poller) {
-          deps.poller.updateBot(newBot);
+        for (const oldBot of botMgr.getAllBots()) {
+          if (!newBotIds.has(oldBot.id)) {
+            botMgr.removeBot(oldBot.id);
+          }
         }
-      } else if (currentBot) {
-        if (proto === "milky") {
-          currentBot.updateConfig(newConfig.milky);
-        } else if (proto === "qqbot") {
-          currentBot.updateConfig(newConfig.qqbot);
-        } else {
-          currentBot.updateConfig(newConfig.onebot);
+      } else {
+        const currentBot = getCurrentBot();
+        if (proto !== oldProto) {
+          console.log(`[WebUI] Switching bot protocol from ${oldProto} to ${proto}...`);
+          if (currentBot) {
+            currentBot.disconnect();
+          }
+          const newBot = createBotClient(newConfig);
+          newBot.onMessageCallback = async (msg) => {
+            await handleMessage(msg, newBot);
+          };
+          newBot.connect();
+          setCurrentBot(newBot);
+          if (deps.poller) {
+            deps.poller.updateBot(newBot);
+          }
+        } else if (currentBot) {
+          if (proto === "milky") {
+            currentBot.updateConfig(newConfig.milky);
+          } else if (proto === "qqbot") {
+            currentBot.updateConfig(newConfig.qqbot);
+          } else {
+            currentBot.updateConfig(newConfig.onebot);
+          }
         }
       }
 
@@ -269,12 +291,14 @@ export function getWebUIRouter(deps: WebUIDeps) {
 
   router.get("/api/status", (req, res) => {
     const currentBot = getCurrentBot();
+    const botMgr = getBotManager();
     const botState = currentBot ? currentBot.getConnectionState() : null;
     const proto = currentBot
       ? currentBot.protocol
       : getConfig().protocol || "onebot";
     const qqbotMode =
       proto === "qqbot" ? getConfig().qqbot?.mode || "ws" : undefined;
+    const botStates = botMgr ? botMgr.getBotStates() : [];
     res.json({
       status: "running",
       uptime: Math.floor((Date.now() - serviceStartTime) / 1000),
@@ -287,7 +311,200 @@ export function getWebUIRouter(deps: WebUIDeps) {
       ).length,
       botState,
       onebotState: botState, // backward compatibility
+      bots: botStates, // multi-bot status list
     });
+  });
+
+  // --- Multi-Bot CRUD Endpoints ---
+  router.get("/api/bots", (req, res) => {
+    const cfg = getConfig();
+    const botMgr = getBotManager();
+    const botsList = (cfg.bots || []).map((b) => {
+      const client = botMgr?.getBot(b.id);
+      return {
+        ...b,
+        state: client
+          ? client.getConnectionState()
+          : { connected: false, stopped: true, attempts: 0, maxAttempts: 5 },
+        info: client ? client.getBotInfo() : null,
+      };
+    });
+    res.json(botsList);
+  });
+
+  router.post("/api/bots", (req, res) => {
+    try {
+      const botCfg: BotInstanceConfig = req.body;
+      if (!botCfg || !botCfg.id || !botCfg.name || !botCfg.protocol) {
+        return res
+          .status(400)
+          .json({ success: false, error: "缺少必要字段: id, name, protocol" });
+      }
+
+      const cfg = getConfig();
+      cfg.bots = cfg.bots || [];
+      if (cfg.bots.some((b) => b.id === botCfg.id)) {
+        return res
+          .status(400)
+          .json({ success: false, error: `协议端实例 ID "${botCfg.id}" 已存在` });
+      }
+
+      if (botCfg.protocol === "onebot") {
+        botCfg.onebot = botCfg.onebot || {
+          ws_url: "ws://127.0.0.1:3001",
+          access_token: "",
+          command_prefix: "/",
+          masters: [],
+        };
+      } else if (botCfg.protocol === "milky") {
+        botCfg.milky = botCfg.milky || {
+          endpoint: "http://127.0.0.1:3000",
+          access_token: "",
+          command_prefix: "/",
+          masters: [],
+        };
+      } else if (botCfg.protocol === "qqbot") {
+        botCfg.qqbot = botCfg.qqbot || {
+          mode: "ws",
+          app_id: "",
+          app_secret: "",
+          sandbox: false,
+          webhook_path: "/qqbot/webhook",
+          intents: 1 << 25,
+          command_prefix: "/",
+          masters: [],
+        };
+      }
+
+      if (botCfg.enabled === undefined) botCfg.enabled = true;
+
+      cfg.bots.push(botCfg);
+      saveConfig(cfg);
+
+      const botMgr = getBotManager();
+      if (botMgr) {
+        botMgr.addBot(botCfg, true);
+      }
+
+      res.json({ success: true, bot: botCfg });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.put("/api/bots/:id", (req, res) => {
+    try {
+      const id = req.params.id;
+      const botCfg: BotInstanceConfig = req.body;
+      const cfg = getConfig();
+      cfg.bots = cfg.bots || [];
+      const idx = cfg.bots.findIndex((b) => b.id === id);
+      if (idx === -1) {
+        return res
+          .status(404)
+          .json({ success: false, error: `未找到协议端实例 "${id}"` });
+      }
+
+      botCfg.id = id;
+      cfg.bots[idx] = { ...cfg.bots[idx], ...botCfg };
+      saveConfig(cfg);
+
+      const botMgr = getBotManager();
+      if (botMgr) {
+        botMgr.updateBot(cfg.bots[idx]);
+      }
+
+      res.json({ success: true, bot: cfg.bots[idx] });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.delete("/api/bots/:id", (req, res) => {
+    try {
+      const id = req.params.id;
+      const cfg = getConfig();
+      cfg.bots = cfg.bots || [];
+      const idx = cfg.bots.findIndex((b) => b.id === id);
+      if (idx === -1) {
+        return res
+          .status(404)
+          .json({ success: false, error: `未找到协议端实例 "${id}"` });
+      }
+
+      if (cfg.bots.length <= 1) {
+        return res
+          .status(400)
+          .json({ success: false, error: "系统至少需要保留一个协议端实例" });
+      }
+
+      cfg.bots.splice(idx, 1);
+      saveConfig(cfg);
+
+      const botMgr = getBotManager();
+      if (botMgr) {
+        botMgr.removeBot(id);
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  router.post("/api/bots/:id/reconnect", (req, res) => {
+    const id = req.params.id;
+    const botMgr = getBotManager();
+    if (botMgr) {
+      const ok = botMgr.reconnectBot(id);
+      if (ok) return res.json({ success: true });
+      return res
+        .status(404)
+        .json({ success: false, error: `协议端实例 "${id}" 不存在` });
+    }
+    const currentBot = getCurrentBot();
+    if (currentBot) {
+      currentBot.forceReconnect();
+      return res.json({ success: true });
+    }
+    res.status(500).json({ success: false, error: "Bot not initialized" });
+  });
+
+  router.post("/api/bots/:id/stop", (req, res) => {
+    const id = req.params.id;
+    const botMgr = getBotManager();
+    if (botMgr) {
+      const ok = botMgr.stopBot(id);
+      if (ok) return res.json({ success: true });
+      return res
+        .status(404)
+        .json({ success: false, error: `协议端实例 "${id}" 不存在` });
+    }
+    const currentBot = getCurrentBot();
+    if (currentBot) {
+      currentBot.stopReconnect();
+      return res.json({ success: true });
+    }
+    res.status(500).json({ success: false, error: "Bot not initialized" });
+  });
+
+  router.get("/api/bots/:id/groups", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const botMgr = getBotManager();
+      const targetBot = botMgr ? botMgr.getBot(id) : getCurrentBot();
+      if (!targetBot) {
+        return res.json([]);
+      }
+      const groups = await targetBot.callApi("get_group_list");
+      res.json(groups || []);
+    } catch (e: any) {
+      console.warn(
+        `[WebUI] Failed to fetch group list for bot ${req.params.id}:`,
+        e.message
+      );
+      res.json([]);
+    }
   });
 
   // Get logs
@@ -300,7 +517,7 @@ export function getWebUIRouter(deps: WebUIDeps) {
     res.json(logs);
   });
 
-  // Get groups
+  // Get groups (default to first active bot)
   router.get("/api/groups", async (req, res) => {
     try {
       const currentBot = getCurrentBot();

@@ -7,6 +7,8 @@ import { IBotClient, BotInfo, BotConnectionState, SendMessageOptions } from "../
 
 export class QQBotClient implements IBotClient {
   public readonly protocol = "qqbot" as const;
+  public readonly id: string;
+  public name: string;
   private config: QQBotConfig;
 
   // Access Token State
@@ -66,7 +68,9 @@ export class QQBotClient implements IBotClient {
 
   public onMessageCallback: ((msg: any) => Promise<void>) | null = null;
 
-  constructor(config: QQBotConfig) {
+  constructor(config: QQBotConfig, id: string = "qqbot", name: string = "QQBot") {
+    this.id = id;
+    this.name = name;
     this.config = { ...config };
     this.initEd25519Keys();
   }
@@ -1173,7 +1177,7 @@ export class QQBotClient implements IBotClient {
   }
 
   public async sendImageToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     imageBase64: string,
     fallbackText?: string,
     options?: SendMessageOptions
@@ -1186,7 +1190,7 @@ export class QQBotClient implements IBotClient {
   }
 
   public async sendTextToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     text: string,
     options?: SendMessageOptions
   ): Promise<void> {

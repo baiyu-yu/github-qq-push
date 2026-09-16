@@ -11,6 +11,8 @@ interface PendingRequest {
 
 export class OneBotClient implements IBotClient {
   public readonly protocol = "onebot" as const;
+  public readonly id: string;
+  public name: string;
   private ws: WebSocket | null = null;
   private config: OneBotConfig;
   private requestId = 0;
@@ -34,7 +36,9 @@ export class OneBotClient implements IBotClient {
   
   public onMessageCallback: ((msg: any) => Promise<void>) | null = null;
 
-  constructor(config: OneBotConfig) {
+  constructor(config: OneBotConfig, id: string = "default", name: string = "OneBot") {
+    this.id = id;
+    this.name = name;
     this.config = {...config}; // Copy to avoid reference issues
   }
 
@@ -426,7 +430,7 @@ export class OneBotClient implements IBotClient {
    * High-level: send image to a subscription target.
    */
   async sendImageToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     imageBase64: string,
     fallbackText?: string,
     options?: SendMessageOptions
@@ -442,7 +446,7 @@ export class OneBotClient implements IBotClient {
    * High-level: send text to a subscription target
    */
   async sendTextToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     text: string,
     options?: SendMessageOptions
   ): Promise<void> {

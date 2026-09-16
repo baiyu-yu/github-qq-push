@@ -5,6 +5,8 @@ import { IBotClient, BotInfo, BotConnectionState, SendMessageOptions } from "../
 
 export class MilkyClient implements IBotClient {
   public readonly protocol = "milky" as const;
+  public readonly id: string;
+  public name: string;
   private ws: WebSocket | null = null;
   private config: MilkyConfig;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -33,7 +35,9 @@ export class MilkyClient implements IBotClient {
 
   public onMessageCallback: ((msg: any) => Promise<void>) | null = null;
 
-  constructor(config: MilkyConfig) {
+  constructor(config: MilkyConfig, id: string = "milky", name: string = "Milky") {
+    this.id = id;
+    this.name = name;
     this.config = { ...config };
   }
 
@@ -609,7 +613,7 @@ export class MilkyClient implements IBotClient {
   }
 
   public async sendImageToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     imageBase64: string,
     fallbackText?: string,
     options?: SendMessageOptions
@@ -622,7 +626,7 @@ export class MilkyClient implements IBotClient {
   }
 
   public async sendTextToTarget(
-    target: { type: string; id: string },
+    target: { type: string; id: string; botId?: string },
     text: string,
     options?: SendMessageOptions
   ): Promise<void> {
