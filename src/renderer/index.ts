@@ -4,6 +4,26 @@ import * as fs from "fs";
 import { marked } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { getConfig } from "../config";
+import { escapeHtml } from "../utils";
+
+// Configure marked with GFM line breaks and Mermaid diagram detection
+marked.use({
+  gfm: true,
+  breaks: true,
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }): string | false {
+      const isMermaid =
+        lang === "mermaid" ||
+        /^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitGraph)\b/i.test(
+          text.trim()
+        );
+      if (isMermaid) {
+        return `<pre class="mermaid">${escapeHtml(text.trim())}</pre>\n`;
+      }
+      return false;
+    },
+  },
+});
 
 let browser: Browser | null = null;
 let activeRenders = 0;
@@ -159,6 +179,57 @@ export async function renderTemplate(
         // 15s when a CDN is slow/unreachable (e.g. no Google Fonts access),
         // which is unacceptable for every single card render.
         await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 15000 });
+
+        // Check if page contains .mermaid diagrams and render them via local Mermaid
+        const hasMermaid = await page.evaluate(() => !!document.querySelector(".mermaid"));
+        if (hasMermaid) {
+          try {
+            const possiblePaths = [
+              path.resolve(__dirname, "../../node_modules/mermaid/dist/mermaid.min.js"),
+              path.resolve(__dirname, "../node_modules/mermaid/dist/mermaid.min.js"),
+              path.resolve(process.cwd(), "node_modules/mermaid/dist/mermaid.min.js"),
+            ];
+            const mermaidPath = possiblePaths.find((p) => fs.existsSync(p));
+            if (mermaidPath) {
+              await page.addScriptTag({ path: mermaidPath });
+              await page.evaluate(async () => {
+                const isDark =
+                  document.body.classList.contains("dark-theme") ||
+                  document.body.classList.contains("github-dark-dimmed-theme") ||
+                  document.body.classList.contains("github-dark-high-contrast-theme") ||
+                  !document.body.classList.contains("light-theme");
+                const m = (window as any).mermaid;
+                if (m) {
+                  m.initialize({
+                    startOnLoad: false,
+                    theme: isDark ? "dark" : "default",
+                    securityLevel: "loose",
+                    fontFamily:
+                      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+                    themeVariables: isDark
+                      ? {
+                          darkMode: true,
+                          background: "#161b22",
+                          primaryColor: "#1f6feb",
+                          primaryTextColor: "#e6edf3",
+                          primaryBorderColor: "#388bfd",
+                          lineColor: "#58a6ff",
+                          secondaryColor: "#21262d",
+                          tertiaryColor: "#161b22",
+                        }
+                      : undefined,
+                  });
+                  await m.run({
+                    querySelector: ".mermaid",
+                  });
+                }
+              });
+            }
+          } catch (mErr: any) {
+            console.error("[Renderer] Mermaid rendering error:", mErr.message);
+          }
+        }
+
         await page.evaluate(
           () =>
             new Promise<void>((resolve) => {
@@ -254,12 +325,67 @@ export async function renderTemplate(
 }
 
 /**
+ * Defensively repair unclosed markdown code fences.
+ * If an author forgets to close a code fence (``` or ~~~), subsequent sections
+ * (like bot summaries "## Summary by...", <details>, or EOF) would otherwise
+ * get swallowed into a monolithic <pre><code> block.
+ */
+export function repairUnclosedFences(md: string): string {
+  if (!md) return "";
+  const lines = md.split(/\r?\n/);
+  let inFence = false;
+  let fenceChar = "";
+  let fenceLen = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/^(\s*)(`{3,}|~{3,})(.*)$/);
+    if (match) {
+      const char = match[2][0];
+      const len = match[2].length;
+      if (!inFence) {
+        inFence = true;
+        fenceChar = char;
+        fenceLen = len;
+      } else if (char === fenceChar && len >= fenceLen) {
+        inFence = false;
+        fenceChar = "";
+        fenceLen = 0;
+      }
+    } else if (inFence) {
+      // If inside an open fence we encounter major top-level markdown headers,
+      // details/summary tags, horizontal rules, or known bot summary headers,
+      // it is virtually certain that the author forgot to close their code fence.
+      if (
+        /^(##+\s|<details[\s>]|---\s*$|\*\*Summary by|\bSummary by Sourcery\b)/i.test(
+          line.trim()
+        )
+      ) {
+        const closeFence = fenceChar.repeat(fenceLen);
+        lines.splice(i, 0, closeFence);
+        inFence = false;
+        fenceChar = "";
+        fenceLen = 0;
+        i++; // skip the inserted close fence
+      }
+    }
+  }
+
+  if (inFence && fenceChar) {
+    lines.push(fenceChar.repeat(fenceLen));
+  }
+
+  return lines.join("\n");
+}
+
+/**
  * Convert markdown text to safe HTML for use inside templates.
  */
 export function markdownToHtml(md: string, maxLength: number = 50000): string {
   if (!md) return "";
+  const repaired = repairUnclosedFences(md);
   // Truncate very long markdown to avoid crashing the parser, but allow large limits
-  const truncated = md.length > maxLength ? md.slice(0, maxLength) + "\n\n..." : md;
+  const truncated = repaired.length > maxLength ? repaired.slice(0, maxLength) + "\n\n..." : repaired;
   const raw = marked.parse(truncated, { async: false }) as string;
   // Sanitize the rendered HTML: allow GitHub-flavored markdown markup but
   // strip scripts, event handlers, iframes, javascript: URLs, etc.
@@ -275,6 +401,10 @@ export function markdownToHtml(md: string, maxLength: number = 50000): string {
       img: ["src", "alt", "title"],
       input: ["type", "checked", "disabled"],
       code: ["class"],
+      pre: ["class"],
+      div: ["class"],
+      span: ["class"],
+      details: ["open"],
       th: ["align"],
       td: ["align"],
     },

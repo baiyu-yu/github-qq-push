@@ -2,7 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert");
 const fs = require("fs");
 const path = require("path");
-const { fillTemplate } = require("../dist/renderer");
+const { fillTemplate, markdownToHtml } = require("../dist/renderer");
 
 test("fillTemplate clears unprovided placeholders such as editInfo or {{{editinfo}}}", () => {
   const tpl = `
@@ -172,6 +172,51 @@ test("help.html template renders properly with sharp non-rounded styling", () =>
   assert.ok(!filled.includes("{{contentHtml}}"));
   assert.ok(!filled.includes("{{prefix}}"));
 });
+
+test("markdownToHtml preserves single line breaks with <br>", () => {
+  const md = "第一行\n第二行\n\n第三行";
+  const html = markdownToHtml(md);
+  assert.ok(html.includes("第一行<br>第二行") || html.includes("第一行<br />第二行"), "Single newline should become <br>");
+  assert.ok(html.includes("<p>第三行</p>"), "Double newline should create new paragraph");
+});
+
+test("markdownToHtml repairs unclosed code fences before headers and details", () => {
+  const md = [
+    "修复思路",
+    "将 helpdoc 索引统一为正斜杠:",
+    "",
+    "```go",
+    "filepath.ToSlash(filepath.Clean(filePath))",
+    "",
+    "## Summary by Sourcery",
+    "统一 helpdoc 来源路径规范",
+    "",
+    "<details open>",
+    "<summary>Original summary in English</summary>",
+    "English text",
+    "</details>",
+  ].join("\n");
+
+  const html = markdownToHtml(md);
+  // Code block should be closed properly and not swallow ## Summary
+  assert.ok(html.includes('<code class="language-go">filepath.ToSlash(filepath.Clean(filePath))'), "Code block should contain code");
+  assert.ok(html.includes("<h2>Summary by Sourcery</h2>"), "Heading should be parsed outside the code block");
+  assert.ok(html.includes("<details open>"), "details open should be preserved");
+  assert.ok(html.includes("<summary>Original summary in English</summary>"), "summary should be preserved");
+});
+
+test("markdownToHtml converts mermaid code blocks to pre.mermaid", () => {
+  const md = "```mermaid\nflowchart TD\nA --> B\n```";
+  const html = markdownToHtml(md);
+  assert.ok(html.includes('<pre class="mermaid">flowchart TD\nA --&gt; B</pre>'), "Mermaid block should render as pre.mermaid");
+});
+
+test("markdownToHtml auto-detects flowchart syntax without mermaid lang tag", () => {
+  const md = "```\nflowchart TD\nA[Start] --> B[End]\n```";
+  const html = markdownToHtml(md);
+  assert.ok(html.includes('<pre class="mermaid">flowchart TD\nA[Start] --&gt; B[End]</pre>'), "Flowchart should auto-detect as pre.mermaid");
+});
+
 
 
 

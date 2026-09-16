@@ -1741,6 +1741,7 @@ async function handleCommitDiffCommand(
     const shortSha = commit.sha.substring(0, 7);
     const commitMsg = commit.commit?.message || "";
     const firstLine = commitMsg.split("\n")[0] || shortSha;
+    const commitBody = commitMsg.slice(firstLine.length).trim();
     const authorLogin = commit.author?.login;
     const authorName = authorLogin || commit.commit?.author?.name || "unknown";
     const avatarUrl = getAvatarUrl(authorLogin, commit.author?.avatar_url);
@@ -1799,7 +1800,11 @@ async function handleCommitDiffCommand(
       </div>
     `;
 
-    const bodyHtml = commitStats + (filesHtml || '<div style="color: #8b949e; padding: 10px;">无文件变更</div>');
+    const commitBodyHtml = commitBody
+      ? `<div style="margin: 10px 0; padding: 10px 12px; background: #161b22; border-radius: 6px; border: 1px solid #30363d; color: #adbac7; font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;">${escapeHtml(commitBody)}</div>`
+      : "";
+
+    const bodyHtml = commitStats + commitBodyHtml + (filesHtml || '<div style="color: #8b949e; padding: 10px;">无文件变更</div>');
     const timestamp = commit.commit?.author?.date
       ? new Date(commit.commit.author.date).toLocaleString("zh-CN")
       : "";
@@ -1856,6 +1861,7 @@ async function handleCommitSummaryCard(
     const shortSha = commit.sha.substring(0, 7);
     const commitMsg = commit.commit?.message || "";
     const firstLine = commitMsg.split("\n")[0] || shortSha;
+    const commitBody = commitMsg.slice(firstLine.length).trim();
     const authorLogin = commit.author?.login;
     const authorName = authorLogin || commit.commit?.author?.name || "unknown";
     const avatarUrl = getAvatarUrl(authorLogin, commit.author?.avatar_url);
@@ -1863,7 +1869,10 @@ async function handleCommitSummaryCard(
     const commitItem = `
       <div class="commit-item">
         <span class="commit-sha">${shortSha}</span>
-        <span class="commit-message">${escapeHtml(firstLine)}</span>
+        <div style="flex: 1; min-width: 0;">
+          <div class="commit-message">${escapeHtml(firstLine)}</div>
+          ${commitBody ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px; white-space: pre-wrap; word-break: break-word;">${escapeHtml(commitBody)}</div>` : ""}
+        </div>
         <span class="commit-author">${escapeHtml(authorName)}</span>
       </div>
     `;
