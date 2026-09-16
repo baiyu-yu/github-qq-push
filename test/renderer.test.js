@@ -155,4 +155,23 @@ test("parsePullRequestReference correctly identifies PR links and tags", () => {
   });
 });
 
+test("help.html template renders properly with sharp non-rounded styling", () => {
+  const templatePath = path.join(__dirname, "../src/renderer/templates/help.html");
+  assert.ok(fs.existsSync(templatePath), "help.html template should exist");
+
+  const rawHtml = fs.readFileSync(templatePath, "utf-8");
+  assert.ok(rawHtml.includes("border-radius: 0 !important;"), "Should enforce sharp non-rounded styling");
+
+  const filled = fillTemplate(rawHtml, {
+    prefix: "/",
+    contentHtml: "<div class=\"test-content\">Sample commands</div>",
+  });
+
+  assert.ok(filled.includes("Sample commands"));
+  assert.ok(filled.includes("prefix-tag"));
+  assert.ok(!filled.includes("{{contentHtml}}"));
+  assert.ok(!filled.includes("{{prefix}}"));
+});
+
+
 

@@ -18,10 +18,10 @@ const issueUrlRegex =
   /https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)(?:[/?#]\S*)?/i;
 const commitUrlRegex =
   /https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/commit\/([a-f0-9]+)(?:[/?#]\S*)?/i;
-const repoTagRegex = /\[Repo\]\s*([\w.-]+\/[\w.-]+)/i;
-const prTagRegex = /\[PR\]\s*([\w.-]+\/[\w.-]+)#(\d+)/i;
-const issueTagRegex = /\[Issue\]\s*([\w.-]+\/[\w.-]+)#(\d+)/i;
-const commitTagRegex = /\[Commit\]\s*([\w.-]+\/[\w.-]+)@([a-f0-9]+)/i;
+const repoTagRegex = /\[(?:Repo|Repository)(?:[ \t]+[^\]]+)?\]\s*([\w.-]+\/[\w.-]+)/i;
+const prTagRegex = /\[(?:PR|Pull\s*Request)(?:[ \t]+[^\]]+)?\]\s*([\w.-]+\/[\w.-]+)(?:[#\s]+)(\d+)/i;
+const issueTagRegex = /\[Issue(?:[ \t]+[^\]]+)?\]\s*([\w.-]+\/[\w.-]+)(?:[#\s]+)(\d+)/i;
+const commitTagRegex = /\[(?:Commit|Push)(?:[ \t]+[^\]]+)?\]\s*([\w.-]+\/[\w.-]+)(?:[@:]|\s+)([a-f0-9]{7,40})/i;
 
 const VALID_EVENTS = [
   "push",
@@ -103,7 +103,9 @@ function buildHelpMessage(prefix: string) {
     `${prefix}commit <owner/repo>@<sha>`,
     `${prefix}commit <commit-url>`,
     `${prefix}commit  (引用回复 Commit link/card)`,
-    `${prefix}detail  (引用回复 PR card查看详细变更)`,
+    `${prefix}diff <owner/repo> <number|sha>`,
+    `${prefix}diff <number>  (单仓库群直接发送)`,
+    `${prefix}diff  (引用回复 PR/Commit 查看代码变更)`,
   ].join("\n");
 }
 
@@ -137,30 +139,44 @@ export async function handleMessage(
 ): Promise<void> {
   const msgId = String(payload.message_id || "");
   const bot: IBotClient = msgId
-    ? {
-        ...rawBot,
-        sendGroupText: (groupId, text, options) =>
+    ? Object.assign(Object.create(rawBot), {
+        sendGroupText: (groupId: string, text: string, options?: any) =>
           rawBot.sendGroupText(groupId, text, { msgId, ...options }),
-        sendGroupImage: (groupId, imageBase64, fallbackText, options) =>
+        sendGroupImage: (
+          groupId: string,
+          imageBase64: string,
+          fallbackText?: string,
+          options?: any
+        ) =>
           rawBot.sendGroupImage(groupId, imageBase64, fallbackText, {
             msgId,
             ...options,
           }),
-        sendPrivateText: (userId, text, options) =>
+        sendPrivateText: (userId: string, text: string, options?: any) =>
           rawBot.sendPrivateText(userId, text, { msgId, ...options }),
-        sendPrivateImage: (userId, imageBase64, fallbackText, options) =>
+        sendPrivateImage: (
+          userId: string,
+          imageBase64: string,
+          fallbackText?: string,
+          options?: any
+        ) =>
           rawBot.sendPrivateImage(userId, imageBase64, fallbackText, {
             msgId,
             ...options,
           }),
-        sendImageToTarget: (target, imageBase64, fallbackText, options) =>
+        sendImageToTarget: (
+          target: any,
+          imageBase64: string,
+          fallbackText?: string,
+          options?: any
+        ) =>
           rawBot.sendImageToTarget(target, imageBase64, fallbackText, {
             msgId,
             ...options,
           }),
-        sendTextToTarget: (target, text, options) =>
+        sendTextToTarget: (target: any, text: string, options?: any) =>
           rawBot.sendTextToTarget(target, text, { msgId, ...options }),
-      }
+      })
     : rawBot;
 
   const { messageType, targetId } = getTarget(payload);
@@ -230,7 +246,7 @@ export async function handleMessage(
 
   if (text === `${prefix}help` || text === `${prefix}github help`) {
     console.log(`[Message] Matches help command`);
-    await sendText(bot, messageType, targetId, buildHelpMessage(prefix));
+    await handleHelpCommand(targetId, messageType, prefix, bot);
     return;
   }
 
@@ -555,15 +571,32 @@ export async function handleMessage(
     return;
   }
 
-  if (text.startsWith(`${prefix}detail`)) {
-    console.log(`[Message] Matches detail command`);
+  const isDiffCmd = text.startsWith(`${prefix}diff`);
+  const isDetailCmd = text.startsWith(`${prefix}detail`);
+  if (isDiffCmd || isDetailCmd) {
+    const cmdName = isDiffCmd ? "diff" : "detail";
+    console.log(`[Message] Matches ${cmdName} command`);
     const replyContext = await getReplyContextText(payload, bot);
-    
-    // Only support PR detail, not Issue
-    const prRef = parsePullRequestReference(replyContext);
-    
+    const cmdArg = text.slice(`${prefix}${cmdName}`.length).trim();
+
+    // 1. Try parsing PR reference from args or reply context
+    let prRef = parsePullRequestReference(cmdArg, replyContext);
+
+    // Fallback: if cmdArg is a number (e.g. /diff 123 or /diff #123) and target has exactly 1 subscription
+    if (!prRef && (/^\d+$/.test(cmdArg) || /^#\d+$/.test(cmdArg))) {
+      const subs = listSubscriptions({
+        type: messageType === "group" ? "group" : "private",
+        id: targetId,
+      });
+      if (subs.length === 1) {
+        const [owner, repo] = subs[0].repo.split("/");
+        const num = parseInt(cmdArg.replace(/^#/, ""), 10);
+        prRef = { owner, repo, prNumber: num };
+      }
+    }
+
     if (prRef) {
-      await handlePrDetailCommand(
+      await handlePrDiffCommand(
         prRef.owner,
         prRef.repo,
         prRef.prNumber,
@@ -573,12 +606,45 @@ export async function handleMessage(
       );
       return;
     }
-    
+
+    // 2. Try parsing Commit reference from args or reply context
+    let commitRef = parseCommitReference(cmdArg, replyContext);
+
+    // Fallback: if cmdArg is a commit SHA (7-40 hex chars) and target has exactly 1 subscription
+    if (!commitRef && /^[a-f0-9]{7,40}$/i.test(cmdArg)) {
+      const subs = listSubscriptions({
+        type: messageType === "group" ? "group" : "private",
+        id: targetId,
+      });
+      if (subs.length === 1) {
+        const [owner, repo] = subs[0].repo.split("/");
+        commitRef = { owner, repo, commitSha: cmdArg };
+      }
+    }
+
+    if (commitRef) {
+      await handleCommitDiffCommand(
+        commitRef.owner,
+        commitRef.repo,
+        commitRef.commitSha,
+        targetId,
+        messageType,
+        bot
+      );
+      return;
+    }
+
     await sendText(
       bot,
       messageType,
       targetId,
-      `用法: 引用回复一个 PR 卡片，然后发送 ${prefix}detail 查看代码变更详情`
+      `用法:\n` +
+      `${prefix}diff <owner/repo> <PR编号>\n` +
+      `${prefix}diff <PR链接>\n` +
+      `${prefix}diff <PR编号>  (单仓库群直接发送)\n` +
+      `${prefix}diff <owner/repo> <Commit哈希>\n` +
+      `${prefix}diff <Commit链接>\n` +
+      `或者直接引用回复一个 PR / Commit 卡片发送 ${prefix}diff`
     );
     return;
   }
@@ -707,36 +773,51 @@ async function getReplyContextText(
   }
 
   // First check if we have metadata stored locally for this message
-  const metadata = bot.getMessageMetadata(replyId);
-  if (metadata) {
-    console.log(`[Message] Using stored metadata for msg ${replyId}: "${metadata.slice(0, 100)}..."`);
-    return metadata;
+  if (typeof bot.getMessageMetadata === "function") {
+    try {
+      const metadata = bot.getMessageMetadata(replyId);
+      if (metadata) {
+        console.log(`[Message] Using stored metadata for msg ${replyId}: "${metadata.slice(0, 100)}..."`);
+        return metadata;
+      }
+    } catch (e: any) {
+      console.warn(`[Message] getMessageMetadata error for ${replyId}:`, e.message);
+    }
   }
 
   // Fallback to fetching the message via API
-  try {
-    const replyMsg = await bot.callApi("get_msg", { message_id: Number(replyId) });
-    const extracted = extractMessageSearchText(replyMsg);
-    console.log(`[Message] Extracted reply context from msg ${replyId}: "${extracted.slice(0, 100)}..."`);
-    return extracted;
-  } catch (e: any) {
-    console.warn(`[Message] Failed to fetch replied message ${replyId}:`, e.message);
-    return "";
+  if (typeof bot.callApi === "function") {
+    try {
+      const paramId = !isNaN(Number(replyId)) ? Number(replyId) : replyId;
+      const replyMsg = await bot.callApi("get_msg", { message_id: paramId });
+      const extracted = extractMessageSearchText(replyMsg);
+      console.log(`[Message] Extracted reply context from msg ${replyId}: "${extracted.slice(0, 100)}..."`);
+      return extracted;
+    } catch (e: any) {
+      console.warn(`[Message] Failed to fetch replied message ${replyId}:`, e.message);
+      return "";
+    }
   }
+
+  return "";
 }
 
 function extractReplyMessageId(payload: any): string | undefined {
   if (Array.isArray(payload.message)) {
     const replySeg = payload.message.find(
-      (seg: any) => seg?.type === "reply" && seg?.data?.id
+      (seg: any) => seg?.type === "reply" && (seg?.data?.id !== undefined || seg?.data?.message_seq !== undefined)
     );
-    if (replySeg?.data?.id) {
-      return String(replySeg.data.id);
+    if (replySeg) {
+      const id = replySeg.data?.id ?? replySeg.data?.message_seq;
+      if (id !== undefined && id !== null && String(id).trim()) {
+        return String(id).trim();
+      }
     }
   }
 
   const raw = String(payload.raw_message || "");
-  return raw.match(/\[CQ:reply,id=(\d+)/i)?.[1];
+  const match = raw.match(/\[CQ:reply,id=([^,\]]+)/i);
+  return match?.[1]?.trim();
 }
 
 function extractMessageSearchText(message: any): string {
@@ -919,6 +1000,155 @@ async function sendText(
     await bot.sendGroupText(targetId, text);
   } else {
     await bot.sendPrivateText(targetId, text);
+  }
+}
+
+// Handle Help command (render full help card image with sharp, minimalist design)
+async function handleHelpCommand(
+  targetId: string,
+  messageType: string,
+  prefix: string,
+  bot: IBotClient
+): Promise<void> {
+  const target = { type: messageType, id: targetId };
+  const fallbackText = buildHelpMessage(prefix);
+
+  try {
+    const contentHtml = `
+      <div class="section-title">
+        <span>基础与状态</span>
+        <span class="section-tag">通用</span>
+      </div>
+      <div class="cmd-grid">
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}status</span>
+          </div>
+          <div class="cmd-desc">查看服务运行时间、机器人连接状态与订阅统计</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}id</span>
+            <span class="cmd-badge">/myid</span>
+          </div>
+          <div class="cmd-desc">查询当前群聊 ID（群 OpenID）与个人用户 ID</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}help</span>
+          </div>
+          <div class="cmd-desc">呼出此 GitHub QQ 推送指令手册卡片</div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span>仓库订阅管理</span>
+        <span class="section-tag admin">管理员 / Master</span>
+      </div>
+      <div class="cmd-grid">
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}github sub &lt;owner/repo&gt; [事件...]</span>
+          </div>
+          <div class="cmd-desc">为当前群订阅仓库（支持指定事件，默认全量）</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}github unsub &lt;owner/repo&gt;</span>
+          </div>
+          <div class="cmd-desc">取消订阅全部或指定事件通知</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}github list</span>
+          </div>
+          <div class="cmd-desc">查看当前群聊/私聊已绑定的所有仓库与事件</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}github on / off</span>
+          </div>
+          <div class="cmd-desc">一键开启或暂停本群的 GitHub 推送通知</div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span>内容查询与详情卡片</span>
+        <span class="section-tag">查询</span>
+      </div>
+      <div class="cmd-grid">
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}readme &lt;owner/repo | url&gt;</span>
+          </div>
+          <div class="cmd-desc">获取仓库 README 渲染长图（单仓库群可直接发）</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}pr &lt;repo&gt; &lt;num&gt; / &lt;num&gt;</span>
+          </div>
+          <div class="cmd-desc">查看 PR 详情卡片（单仓库群直接发编号，或引用回复）</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}issue &lt;repo&gt; &lt;num&gt; / &lt;num&gt;</span>
+          </div>
+          <div class="cmd-desc">查看 Issue 详情卡片（单仓库群直接发编号，或引用回复）</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}commit &lt;repo&gt; &lt;sha&gt;</span>
+          </div>
+          <div class="cmd-desc">查看 Commit 提交信息卡片（支持引用回复）</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">${escapeHtml(prefix)}diff &lt;repo&gt; &lt;num|sha&gt;</span>
+            <span class="cmd-badge alias">别名 /detail</span>
+          </div>
+          <div class="cmd-desc">调取 PR 或 Commit 的彩色代码变动与 diff 长图</div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <span>快捷方式与自动识别</span>
+        <span class="section-tag">快捷交互</span>
+      </div>
+      <div class="cmd-grid">
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">#&lt;number&gt;</span>
+          </div>
+          <div class="cmd-desc">单仓库绑定群直接发送例如 #123 快捷调出 Issue/PR</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">引用回复卡片</span>
+          </div>
+          <div class="cmd-desc">引用任意卡片发送 ${escapeHtml(prefix)}diff、${escapeHtml(prefix)}pr 查看更多详情</div>
+        </div>
+        <div class="cmd-item">
+          <div class="cmd-left">
+            <span class="cmd-syntax">链接自动识别</span>
+          </div>
+          <div class="cmd-desc">聊天中发送 GitHub 仓库 / PR / Issue / Commit 链接自动转卡片</div>
+        </div>
+      </div>
+    `;
+
+    const image = await renderTemplate(
+      "help",
+      {
+        prefix,
+        contentHtml,
+      },
+      { fullPage: true, width: 760 }
+    );
+
+    await bot.sendImageToTarget(target, image, fallbackText);
+  } catch (e: any) {
+    console.error("[Message] Failed to render help image card, falling back to text:", e.message);
+    await bot.sendTextToTarget(target, fallbackText);
   }
 }
 
@@ -1354,8 +1584,8 @@ async function handleIssueSummaryCard(
   }
 }
 
-// Handle PR detail command (show code changes/diff)
-async function handlePrDetailCommand(
+// Handle PR diff command (show code changes/diff)
+async function handlePrDiffCommand(
   owner: string,
   repoName: string,
   prNumber: number,
@@ -1383,15 +1613,15 @@ async function handlePrDetailCommand(
     });
 
     let badgeClass = "badge-pr-open";
-    let eventLabel = "PR Code Changes";
+    let eventLabel = "PR Diff";
 
     if (pr.state === "closed") {
       if (pr.merged) {
         badgeClass = "badge-pr-merged";
-        eventLabel = "PR Merged - Code Changes";
+        eventLabel = "PR Merged - Diff";
       } else {
         badgeClass = "badge-pr-closed";
-        eventLabel = "PR Closed - Code Changes";
+        eventLabel = "PR Closed - Diff";
       }
     }
 
@@ -1425,7 +1655,7 @@ async function handlePrDetailCommand(
               <span style="color: #f85149; margin-left: 4px;">-${file.deletions}</span>
             </span>
           </div>
-          ${diffHtml}
+          ${diffHtml || `<div style="color: #8b949e; font-style: italic; font-size: 11px; padding: 4px 8px;">（二进制文件或改动过大，未提供 diff）</div>`}
         </div>
       `;
     }
@@ -1438,8 +1668,6 @@ async function handlePrDetailCommand(
       `;
     }
 
-    const labelsHtml = (pr.labels || []).map(label => `<span style="background: #${label.color}; color: #000; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-right: 4px;">${escapeHtml(label.name || "")}</span>`).join("");
-
     const prStats = `
       <div style="margin: 10px 0; padding: 10px; background: #161b22; border-radius: 6px; border: 1px solid #30363d;">
         <span style="color: #3fb950;">+${pr.additions} additions</span>
@@ -1450,7 +1678,7 @@ async function handlePrDetailCommand(
       </div>
     `;
 
-    const bodyHtml = prStats + filesHtml;
+    const bodyHtml = prStats + (filesHtml || '<div style="color: #8b949e; padding: 10px;">无代码文件改动</div>');
     const timestamp = new Date(pr.created_at).toLocaleString("zh-CN");
 
     const image = await renderTemplate(
@@ -1464,7 +1692,7 @@ async function handlePrDetailCommand(
         number: pr.number,
         avatarUrl: getAvatarUrl(pr.user?.login || "github"),
         authorName: pr.user?.login || "unknown",
-        actionText: "代码变更详情",
+        actionText: "代码变更详情 (Diff)",
         timestamp,
         editInfo: "",
         labelsHtml: "",
@@ -1478,13 +1706,132 @@ async function handlePrDetailCommand(
     await bot.sendImageToTarget(
       target,
       image,
-      `[PR Changes] ${owner}/${repoName}#${pr.number}\n${pr.html_url}\n${pr.title}`
+      `[PR Diff] ${owner}/${repoName}#${pr.number}\n${pr.html_url}\n${pr.title}`
     );
   } catch (e: any) {
-    console.error(`[Message] Failed to fetch PR changes for ${owner}/${repoName}#${prNumber}:`, e.message);
+    console.error(`[Message] Failed to fetch PR diff for ${owner}/${repoName}#${prNumber}:`, e.message);
     await bot.sendTextToTarget(
       target,
       "获取 PR 代码变更失败，请检查仓库和编号是否正确。"
+    );
+  }
+}
+
+// Backward-compatible alias
+const handlePrDetailCommand = handlePrDiffCommand;
+
+// Handle Commit diff command (show code changes/diff for commit)
+async function handleCommitDiffCommand(
+  owner: string,
+  repoName: string,
+  commitSha: string,
+  targetId: string,
+  messageType: string,
+  bot: IBotClient
+) {
+  const target = { type: messageType, id: targetId };
+  try {
+    const octokit = getOctokit();
+    const { data: commit } = await octokit.repos.getCommit({
+      owner,
+      repo: repoName,
+      ref: commitSha,
+    });
+
+    const shortSha = commit.sha.substring(0, 7);
+    const commitMsg = commit.commit?.message || "";
+    const firstLine = commitMsg.split("\n")[0] || shortSha;
+    const authorLogin = commit.author?.login;
+    const authorName = authorLogin || commit.commit?.author?.name || "unknown";
+    const avatarUrl = getAvatarUrl(authorLogin, commit.author?.avatar_url);
+
+    const files = commit.files || [];
+    const displayFiles = files.slice(0, 10);
+    let filesHtml = "";
+
+    for (const file of displayFiles) {
+      const statusColor =
+        file.status === "added" ? "#3fb950" :
+        file.status === "removed" ? "#f85149" :
+        file.status === "modified" ? "#d29922" : "#8b949e";
+
+      const statusIcon =
+        file.status === "added" ? "+" :
+        file.status === "removed" ? "-" :
+        file.status === "modified" ? "M" : "•";
+
+      const patch = file.patch || "";
+      const diffHtml = renderGitHubDiffHtml(patch, 500);
+
+      filesHtml += `
+        <div style="margin: 12px 0; padding: 10px; background: #161b22; border-radius: 6px; border: 1px solid #30363d;">
+          <div style="margin-bottom: 8px; font-family: monospace; font-size: 13px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <span style="color: ${statusColor}; font-weight: bold;">${statusIcon}</span>
+              <span style="color: #e6edf3; margin-left: 8px; font-weight: 500;">${escapeHtml(file.filename)}</span>
+            </div>
+            <span style="color: #8b949e; font-size: 11px;">
+              <span style="color: #3fb950;">+${file.additions}</span>
+              <span style="color: #f85149; margin-left: 4px;">-${file.deletions}</span>
+            </span>
+          </div>
+          ${diffHtml || `<div style="color: #8b949e; font-style: italic; font-size: 11px; padding: 4px 8px;">（二进制文件或改动过大，未提供 diff）</div>`}
+        </div>
+      `;
+    }
+
+    if (files.length > 10) {
+      filesHtml += `
+        <div style="margin: 10px 0; padding: 8px; background: #161b22; border-radius: 4px; text-align: center; color: #8b949e; font-size: 12px;">
+          ... 还有 ${files.length - 10} 个文件未显示
+        </div>
+      `;
+    }
+
+    const stats = commit.stats || { additions: 0, deletions: 0, total: 0 };
+    const commitStats = `
+      <div style="margin: 10px 0; padding: 10px; background: #161b22; border-radius: 6px; border: 1px solid #30363d;">
+        <span style="color: #3fb950;">+${stats.additions} additions</span>
+        <span style="color: #8b949e; margin: 0 10px;">|</span>
+        <span style="color: #f85149;">-${stats.deletions} deletions</span>
+        <span style="color: #8b949e; margin: 0 10px;">|</span>
+        <span style="color: #e6edf3;">${files.length} files changed</span>
+      </div>
+    `;
+
+    const bodyHtml = commitStats + (filesHtml || '<div style="color: #8b949e; padding: 10px;">无文件变更</div>');
+    const timestamp = commit.commit?.author?.date
+      ? new Date(commit.commit.author.date).toLocaleString("zh-CN")
+      : "";
+
+    const image = await renderTemplate(
+      "comment",
+      {
+        badgeClass: "badge-push",
+        eventLabel: "Commit Diff",
+        repoFullName: `${owner}/${repoName}`,
+        title: escapeHtml(firstLine),
+        number: `@${shortSha}`,
+        avatarUrl,
+        authorName,
+        actionText: "提交了代码变更 (Diff)",
+        timestamp,
+        editInfo: "",
+        bodyHtml,
+      },
+      { fullPage: true }
+    );
+
+    await bot.sendImageToTarget(
+      target,
+      image,
+      `[Commit Diff] ${owner}/${repoName}@${shortSha}\n${commit.html_url}\n${firstLine}`
+    );
+  } catch (e: any) {
+    console.error(`[Message] Failed to fetch Commit diff for ${owner}/${repoName}@${commitSha}:`, e.message);
+    await bot.sendTextToTarget(
+      target,
+      "获取 Commit 代码变更失败，请检查仓库和 commit SHA 是否正确。"
     );
   }
 }
@@ -1577,16 +1924,17 @@ function renderGitHubDiffHtml(patch: string, maxLines: number = 500): string {
 
   const renderedLines = displayLines.map((line) => {
     const escaped = escapeHtml(line);
+    const content = escaped || "&nbsp;";
     if (line.startsWith("+") && !line.startsWith("+++")) {
-      return `<div style="background: rgba(46, 160, 67, 0.15); color: #3fb950; padding: 1px 8px; border-left: 3px solid #3fb950; font-family: 'Consolas', 'Monaco', monospace;">${escaped}</div>`;
+      return `<div style="background: rgba(46, 160, 67, 0.15); color: #3fb950; padding: 1px 8px; border-left: 3px solid #3fb950; font-family: 'Consolas', 'Monaco', monospace;">${content}</div>`;
     }
     if (line.startsWith("-") && !line.startsWith("---")) {
-      return `<div style="background: rgba(248, 81, 73, 0.15); color: #f85149; padding: 1px 8px; border-left: 3px solid #f85149; font-family: 'Consolas', 'Monaco', monospace;">${escaped}</div>`;
+      return `<div style="background: rgba(248, 81, 73, 0.15); color: #f85149; padding: 1px 8px; border-left: 3px solid #f85149; font-family: 'Consolas', 'Monaco', monospace;">${content}</div>`;
     }
     if (line.startsWith("@@")) {
-      return `<div style="background: rgba(56, 139, 253, 0.15); color: #58a6ff; font-weight: bold; padding: 2px 8px; margin: 2px 0; font-family: 'Consolas', 'Monaco', monospace;">${escaped}</div>`;
+      return `<div style="background: rgba(56, 139, 253, 0.15); color: #58a6ff; font-weight: bold; padding: 2px 8px; margin: 2px 0; font-family: 'Consolas', 'Monaco', monospace;">${content}</div>`;
     }
-    return `<div style="color: #8b949e; padding: 1px 8px; border-left: 3px solid transparent; font-family: 'Consolas', 'Monaco', monospace;">${escaped}</div>`;
+    return `<div style="color: #8b949e; padding: 1px 8px; border-left: 3px solid transparent; font-family: 'Consolas', 'Monaco', monospace;">${content}</div>`;
   });
 
   if (lines.length > maxLines) {

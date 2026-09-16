@@ -490,11 +490,11 @@ test("handleMessage dispatches passive replies carrying msgId and auto msg_seq t
   };
 
   try {
-    // Incoming full mode message event "/help"
+    // Incoming full mode message event "/status"
     const eventPayload = {
       id: "ROBOT1.0_user_cmd_help_99",
       group_openid: "GROUP_OPENID_HELP_TEST",
-      content: "/help",
+      content: "/status",
       author: {
         id: "USER_ALICE",
         username: "Alice",

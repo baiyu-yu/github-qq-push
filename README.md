@@ -20,8 +20,8 @@
 - **Webhook + 轮询双引擎**: 支持 GitHub Webhook 主动推送与 API 自动轮询双模式，内置多重指纹去重（Deduplication），保证消息不漏不重。
 - **自动解析各类链接**: 在聊天中自动识别 GitHub 仓库、Pull Request、Issue、Commit 链接并生成概要卡片。
 - **单仓库快捷查询**: 当当前群聊仅绑定 1 个仓库时，直接发送 `#数字`（例如 `#123`）即可秒查该 Issue 或 PR 的详情卡片！
-- **代码变更深入查看**: 引用回复 PR 卡片并发送 `/detail`，可直接以长图查看该 PR 的文件修改与彩色 diff 代码变动。
-- **丰富的指令支持**: 提供 `/status`、`/help`、`/readme`、`/pr`、`/issue`、`/commit` 以及管理员专用的 `/github` 系列订阅管理指令。
+- **代码变更深入查看**: 发送 `/diff`（或兼容别名 `/detail`），支持直接指定 PR/Commit、单仓库群直接发编号，或引用回复 PR/Commit 卡片，直接以长图查看文件变动统计与彩色 diff 代码行。
+- **丰富的指令支持**: 提供 `/status`、`/help`、`/readme`、`/pr`、`/issue`、`/commit`、`/diff` 以及管理员专用的 `/github` 系列订阅管理指令。
 
 ## 可用指令与交互
 
@@ -54,8 +54,10 @@
 - `/commit <owner/repo sha | url>`:
   - 获取指定 Commit 的提交信息与文件变更卡片。
   - 支持直接引用回复 Commit 卡片/链接后发送 `/commit`。
-- `/detail`:
-  - 引用回复任一 PR 卡片后发送 `/detail`，可调取查看包含每个文件增删统计与彩色 diff 代码片段的变更长图。
+- `/diff <owner/repo number|sha | url | number>`（兼容别名 `/detail`）：
+  - 获取指定 PR 或 Commit 的详细代码变更与彩色 diff 长图卡片。
+  - 单仓库群聊中可直接发送 `/diff 123`。
+  - 支持直接引用回复 PR 或 Commit 卡片/链接后发送 `/diff`。
 
 ### 自动链接识别与防刷屏
 - 直接发送 GitHub 仓库链接（如 `https://github.com/owner/repo`）、PR 链接、Issue 链接或 Commit 链接，机器人会自动识别并回复相应的卡片。
